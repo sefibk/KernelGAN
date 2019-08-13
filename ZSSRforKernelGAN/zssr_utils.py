@@ -300,13 +300,6 @@ def create_loss_map(im, window=5, clip_rng=np.array([0.0, 255.0])):
     return loss_map
 
 
-def eval_ratio(sr, gt, idx, conf, without_bp):
-    # Calculates the ratio between the MSE of the (GT-SR with calculated kernel) / (GT- SR with GT kernel)
-    mse_sr_gt = np.mean((sr - gt)**2)
-    denominator = conf.psnr_gt_k_no_bp[idx] if without_bp else conf.psnr_gt_k_zssr[idx]
-    return mse_sr_gt / denominator
-
-
 def image_float2int(im):
     """converts a float image to uint"""
     if np.max(im) < 2:

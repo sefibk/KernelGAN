@@ -469,10 +469,7 @@ class ZSSR:
     def fix_png_tif(self, in_im_path, in_gt_path):
         """if a .tif image is given - fixes the format"""
         raw_input_image_path = in_im_path.rsplit('.', 1)[0]
-        raw_gt_image_path = in_gt_path.rsplit('.', 1)[0] if in_gt_path is not None else None
         for suf in ['.png', '.tif', '.jpg']:
             if os.path.isfile(raw_input_image_path + suf):
                 in_im_path = raw_input_image_path + suf
-            if raw_gt_image_path is not None and os.path.isfile(raw_gt_image_path + suf):
-                in_gt_path = raw_gt_image_path + suf
         return in_im_path, in_gt_path

@@ -79,28 +79,6 @@ class Logger:
         idx = self.conf.file_idx
         # Save input and gt files to result dir
         plt.imsave(path + '/ZSSR/aa_img_%d_input.png' % idx, read_image(self.conf.input_image_path))
-        if os.path.isfile(self.conf.gt_image_path):
-            plt.imsave(path + '/ZSSR/aa_img_%d_gt.png' % idx, read_image(self.conf.gt_image_path))
-        # else:
-        #     plt.imsave(os.path.join(path, '../ZSSR', 'img_%d_input.png' % idx), read_image(self.conf.input_image_path))
-        if False and ('BSD' in self.conf.gt_image_path or 'DIV2K' in self.conf.gt_image_path):
-            path = self.conf.output_dir_path + '/ZSSR'
-            # Saves SR (w/wo BP) with Tomer's, GT, Bicubic kernels (files already exist)
-            def_path = self.conf.gt_image_path.split('gt')[0]
-            img_path = 'img_%d_%s.png'
-            scale = int(1 / self.conf.scale_factor) if not self.conf.analytic_sf else int(2/self.conf.scale_factor)
-            tomer_path = def_path + 'sr_w_tomer_k_x%d/' + img_path
-            if self.conf.psnr_tomer_k_zssr is not None:
-                plt.imsave(path + '/zssr_tomer_k=%.2f.png' % self.conf.psnr_tomer_k_zssr[idx], read_image(tomer_path % (scale, idx, 'zssr')))
-                # plt.imsave(path + '/no_bp_tomer_k=%.2f.png' % self.conf.psnr_tomer_k_no_bp[idx], read_image(tomer_path % (scale, idx, 'no_bp')))
-            gt_k_path = def_path + 'sr_w_gt_k_x%d/' + img_path
-            if self.conf.psnr_gt_k_zssr is not None:
-                plt.imsave(path + '/zssr_gt_k=%.2f.png' % self.conf.psnr_gt_k_zssr[idx], read_image(gt_k_path % (scale, idx, 'zssr')))
-                # plt.imsave(path + '/no_bp_gt_k=%.2f.png' % self.conf.psnr_gt_k_no_bp[idx], read_image(gt_k_path % (scale, idx, 'no_bp')))
-            bic_k_path = def_path + 'sr_w_bic_k_x%d/' + img_path
-            if self.conf.psnr_bic_k_zssr is not None:
-                plt.imsave(path + '/zssr_bic_k=%.2f.png' % self.conf.psnr_bic_k_zssr[idx], read_image(bic_k_path % (scale, idx, 'zssr')))
-                # plt.imsave(path + '/no_bp_bic_k=%.2f.png' % self.conf.psnr_bic_k_no_bp[idx], read_image(bic_k_path % (scale, idx, 'no_bp')))
 
     def save_kernel(self, kernel):
         sharper_k = post_process_k(kernel, method=self.conf.sharpening, n=self.conf.n_filtering, sigma=self.conf.gaussian)

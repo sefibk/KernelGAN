@@ -13,7 +13,7 @@ class KernelGAN:
         self.conf = conf
 
         # Define the GAN
-        self.G = networks.Generator(conf).cuda() if conf.G_structure != 1 else networks.LinearGenerator(conf).cuda()
+        self.G = networks.Generator(conf).cuda()
         self.D = networks.Discriminator(conf).cuda()
 
         # Calculate D's input & output shape according to the shaving done by the networks

@@ -17,9 +17,7 @@ class Config:
 
         # Paths
         self.parser.add_argument('--input_image_path', default=os.path.dirname(__file__) + '/training_data/input.png', help='path to one specific image file')
-        self.parser.add_argument('--gt_image_path', default=os.path.dirname(__file__) + '/training_data/input_gt.png', help='path to the corresponding HR')
         self.parser.add_argument('--gt_kernel_path', default=os.path.dirname(__file__) + '/training_data/kernel.mat', help='path to the true kernel')
-        self.parser.add_argument('--tomer_kernel_path', default=os.path.dirname(__file__) + '/training_data/kernel.mat', help='path to the true kernel')
         self.parser.add_argument('--output_dir_path', default='/home/sefibe/data/kernelGAN_results', help='Save results to data folder - switch to next row if published')
         self.parser.add_argument('--name', default='KGAN', help='Name of the folder for results')
         self.parser.add_argument('--shot', type=int, default=1, help='The number of the GANs try')
@@ -33,7 +31,7 @@ class Config:
         # Network architecture
         self.parser.add_argument('--G_chan', type=int, default=64, help='Number of channels in hidden layer in the Generator')
         self.parser.add_argument('--D_chan', type=int, default=64, help='Number of channels in hidden layer in the Discriminator')
-        self.parser.add_argument('--G_structure', type=int, default=753111, help='Generators structure written in an intuitive way')
+        self.parser.add_argument('--G_kernel_size', type=int, default=13, help='The kernel size G is estimating')
         self.parser.add_argument('--init_G_as_delta', action='store_true', help='Determines if G is initialized as a delta kernel')
         self.parser.add_argument('--D_n_layers', type=int, default=7, help='Discriminators depth')
         self.parser.add_argument('--D_kernel_size', type=int, default=7, help='Discriminators convolution kernels size')
@@ -79,7 +77,6 @@ class Config:
         self.parser.add_argument('--skip_log', action='store_true', help='Determines whether all logs & plots are saves (place flag if runtime is important)')
         self.parser.add_argument('--log_freq', type=int, default=250, help='frequency of logging')
         self.parser.add_argument('--display_freq', type=int, default=250, help='frequency of showing training results on screen - must be a multiplier of log_freg')
-        self.parser.add_argument('--skip_code_copy', action='store_true', help='if not true, all .py files are saved to results directory to keep track')
 
         # Kernel post processing
         self.parser.add_argument('--gaussian', type=float, default=0., help='The sigma of the gaussian added to the kernel; Zero will not add the "noise"')
@@ -106,11 +103,10 @@ class Config:
             return self.conf
         print(self.conf)
         self.set_gpu_device()
-        self.update_g_kernel_size()
         self.load_gt_kernel()
         self.prepare_result_dir()
-        self.load_psnr_benchmark()
         self.set_downscaling_kernel()
+        self.conf.G_structure = [7, 5, 3, 1, 1, 1]
         if self.conf.debug:
             self.conf.max_iters = 500
         # self.conf.do_SR = True
@@ -121,28 +117,19 @@ class Config:
         if os.path.isfile(self.conf.gt_kernel_path):         # If GT kernel is given, use it (only a mat array)
             mat_file = scipy.io.loadmat(self.conf.gt_kernel_path)
             self.conf.gt_kernel = mat_file['Kernel']
-        elif os.path.isfile(self.conf.gt_image_path):        # If gt image is given - calculate the kernel
-            self.conf.gt_kernel = est_k_from_2_imgs(big_im=self.conf.gt_image_path, sml_im=self.conf.input_image_path, k_size=self.conf.G_kernel_size)
         else:        # display an X
             self.conf.gt_kernel = draw_x(self.conf.G_kernel_size)
 
         # Load Tomer's kernel estimation
-        if os.path.isfile(self.conf.tomer_kernel_path):
-            mat_file = scipy.io.loadmat(self.conf.tomer_kernel_path)
-            self.conf.tomer_kernel = mat_file['Kernel']
-        else:
-            self.conf.tomer_kernel = draw_x(self.conf.G_kernel_size)
+        self.conf.tomer_kernel = draw_x(self.conf.G_kernel_size)
 
     def fix_png_tif(self):
         """if a .tif image is given - fixes the format"""
         raw_input_image_path = self.conf.input_image_path.rsplit('.', 1)[0]
-        raw_gt_image_path = self.conf.gt_image_path.rsplit('.', 1)[0]
         self.conf.input_image_path = None
         for suf in ['.png', '.tif', '.jpg', '.bmp']:
             if os.path.isfile(raw_input_image_path + suf):
                 self.conf.input_image_path = raw_input_image_path + suf
-            if os.path.isfile(raw_gt_image_path + suf):
-                self.conf.gt_image_path = raw_gt_image_path + suf
 
     def prepare_result_dir(self):
         """ Give a proper name to the result folder, create it if doesn't exist & store the code in it (if indicated) """
@@ -156,49 +143,6 @@ class Config:
         os.makedirs(self.conf.output_dir_path)
         if not self.conf.skip_log:
             [os.makedirs(self.conf.output_dir_path + '/%s' % x) for x in ['figures', 'ZSSR']]
-        if not self.conf.skip_code_copy:
-            os.makedirs(self.conf.output_dir_path + '/code')
-            for py_file in glob.glob(os.path.dirname(__file__) + '/*.py'):
-                copy(py_file, self.conf.output_dir_path + '/code')
-
-    def load_psnr_benchmark(self):
-        """Load PSNR performance of ZSSR using different kernels"""
-        if self.conf.dataset == 'BSD' or self.conf.dataset == 'DIV2K':
-            path = '/home/sefibe/Documents/KernelGAN/training_data/%s' % self.conf.dataset
-            scale = int(1 / self.conf.scale_factor) if not self.conf.analytic_sf else int(2 / self.conf.scale_factor)
-            if os.path.isfile(path + '/sr_w_bic_k_x%d/PSNR_no_bp.npy' % scale):
-                self.conf.psnr_bic_k_no_bp = np.load(path + '/sr_w_bic_k_x%d/PSNR_no_bp.npy' % scale)
-                self.conf.psnr_bic_k_zssr = np.load(path + '/sr_w_bic_k_x%d/PSNR_zssr.npy' % scale)
-            else:
-                self.conf.psnr_bic_k_no_bp, self.conf.psnr_bic_k_zssr = None, None
-            self.conf.psnr_gt_k_no_bp = np.load(path + '/sr_w_gt_k_x%d/PSNR_no_bp.npy' % scale)
-            self.conf.psnr_gt_k_zssr = np.load(path + '/sr_w_gt_k_x%d/PSNR_zssr.npy' % scale)
-            self.conf.psnr_bic_k_no_bp, self.conf.psnr_bic_k_zssr = None, None
-            if os.path.isfile(path + '/sr_w_tomer_k_x%d/PSNR_no_bp.npy' % scale):
-                self.conf.psnr_tomer_k_no_bp = np.load(path + '/sr_w_tomer_k_x%d/PSNR_no_bp.npy' % scale)
-                self.conf.psnr_tomer_k_zssr = np.load(path + '/sr_w_tomer_k_x%d/PSNR_zssr.npy' % scale)
-            else:
-                self.conf.psnr_tomer_k_no_bp, self.conf.psnr_tomer_k_zssr = None, None
-        else:
-            self.conf.psnr_bic_k_no_bp, self.conf.psnr_bic_k_zssr = None, None
-            self.conf.psnr_gt_k_no_bp, self.conf.psnr_gt_k_zssr = None, None
-            self.conf.psnr_tomer_k_no_bp, self.conf.psnr_tomer_k_zssr = None, None
-
-    def update_g_kernel_size(self):
-        """Calculate G_kernel_size according to G's architecture"""
-        print(self.conf.G_structure)
-        if self.conf.G_structure == 1:
-            self.conf.G_structure = 1
-            self.conf.G_kernel_size = 13
-        else:
-            struct_str = str(self.conf.G_structure)
-            self.conf.G_structure = []
-            first_layer_digits = 2 if struct_str[0] == '1' else 1
-            self.conf.G_structure.append(int(struct_str[0:first_layer_digits]))
-            for layer in range(first_layer_digits, len(str(struct_str))):
-                self.conf.G_structure.append(int(struct_str[layer]))
-            self.conf.G_kernel_size = sum(k_size - 1 for k_size in self.conf.G_structure) + 1
-        print('G\'s structure is ', self.conf.G_structure, ' with kernel size:', self.conf.G_kernel_size)
 
     def set_gpu_device(self):
         """Sets the GPU device if one is given"""
@@ -211,13 +155,12 @@ class Config:
     def set_downscaling_kernel(self):      
         """The kernel used for DownScaleLoss"""
         # A pre-prepared 8x8 bicubic kernel for DownScaleLoss
-        if self.conf.scale_factor == 0.5:
-            self.conf.bic_kernel = [[0.0001373291015625,  0.0004119873046875, -0.0013275146484375, -0.0050811767578125, -0.0050811767578125, -0.0013275146484375,  0.0004119873046875,  0.0001373291015625],
-                                    [0.0004119873046875,  0.0012359619140625, -0.0039825439453125, -0.0152435302734375, -0.0152435302734375, -0.0039825439453125,  0.0012359619140625,  0.0004119873046875],
-                                    [-.0013275146484375, -0.0039825439453130,  0.0128326416015625,  0.0491180419921875,  0.0491180419921875,  0.0128326416015625, -0.0039825439453125, -0.0013275146484375],
-                                    [-.0050811767578125, -0.0152435302734375,  0.0491180419921875,  0.1880035400390630,  0.1880035400390630,  0.0491180419921875, -0.0152435302734375, -0.0050811767578125],
-                                    [-.0050811767578125, -0.0152435302734375,  0.0491180419921875,  0.1880035400390630,  0.1880035400390630,  0.0491180419921875, -0.0152435302734375, -0.0050811767578125],
-                                    [-.0013275146484380, -0.0039825439453125,  0.0128326416015625,  0.0491180419921875,  0.0491180419921875,  0.0128326416015625, -0.0039825439453125, -0.0013275146484375],
-                                    [0.0004119873046875,  0.0012359619140625, -0.0039825439453125, -0.0152435302734375, -0.0152435302734375, -0.0039825439453125,  0.0012359619140625,  0.0004119873046875],
-                                    [0.0001373291015625,  0.0004119873046875, -0.0013275146484375, -0.0050811767578125, -0.0050811767578125, -0.0013275146484375,  0.0004119873046875,  0.0001373291015625]]
+        self.conf.bic_kernel = [[0.0001373291015625,  0.0004119873046875, -0.0013275146484375, -0.0050811767578125, -0.0050811767578125, -0.0013275146484375,  0.0004119873046875,  0.0001373291015625],
+                                [0.0004119873046875,  0.0012359619140625, -0.0039825439453125, -0.0152435302734375, -0.0152435302734375, -0.0039825439453125,  0.0012359619140625,  0.0004119873046875],
+                                [-.0013275146484375, -0.0039825439453130,  0.0128326416015625,  0.0491180419921875,  0.0491180419921875,  0.0128326416015625, -0.0039825439453125, -0.0013275146484375],
+                                [-.0050811767578125, -0.0152435302734375,  0.0491180419921875,  0.1880035400390630,  0.1880035400390630,  0.0491180419921875, -0.0152435302734375, -0.0050811767578125],
+                                [-.0050811767578125, -0.0152435302734375,  0.0491180419921875,  0.1880035400390630,  0.1880035400390630,  0.0491180419921875, -0.0152435302734375, -0.0050811767578125],
+                                [-.0013275146484380, -0.0039825439453125,  0.0128326416015625,  0.0491180419921875,  0.0491180419921875,  0.0128326416015625, -0.0039825439453125, -0.0013275146484375],
+                                [0.0004119873046875,  0.0012359619140625, -0.0039825439453125, -0.0152435302734375, -0.0152435302734375, -0.0039825439453125,  0.0012359619140625,  0.0004119873046875],
+                                [0.0001373291015625,  0.0004119873046875, -0.0013275146484375, -0.0050811767578125, -0.0050811767578125, -0.0013275146484375,  0.0004119873046875,  0.0001373291015625]]
 
