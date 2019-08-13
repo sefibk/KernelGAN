@@ -51,11 +51,6 @@ def save_tensor(im_t, path):
     image_pil.save(path)
 
 
-def clean_name(s):
-    """Fixes the image name to a cleaner one for the result folder"""
-    return s.split('/')[-1].split('.')[0].replace('ZSSR', '').replace('X4', '')
-
-
 def read_image(path, mode='RGB'):
     """Loads an image"""
     im = Image.open(path)
@@ -289,25 +284,6 @@ def create_gaussian(size, sigma1, sigma2=-1, is_tensor=False):
     return torch.FloatTensor(np.outer(func1, func2)).cuda() if is_tensor else np.outer(func1, func2)
 
 
-def compute_psnr(imsr, imgt, scale_factor=.5):
-    """Compute PSNR according to the Korean Matlab code"""
-    # In case a path is given and no GT exists - returns 0
-    if type(imgt) == str:
-        if not os.path.isfile(imgt):
-            return 0, 0
-        else:
-            imgt = read_image(imgt)
-    imsr = (imsr * 255.).astype(np.int) if (imsr.dtype == np.float32 and imsr.max() < 2) else imsr.astype(np.int)
-    imgt = (imgt * 255.).astype(np.int) if (imgt.dtype == np.float32 and imgt.max() < 2) else imgt.astype(np.int)
-    # Retrieve only luminance channel, crop edges and convert to float 64
-    sf = int(1/scale_factor)
-    imsr, imgt = np.float64(rgb2ycbcr(imsr))[sf:-sf, sf:-sf, 0], np.float64(rgb2ycbcr(imgt))[sf:-sf, sf:-sf, 0]
-    # Compute PSNR
-    imdff = (imsr - imgt).flatten()
-    rmse = np.sqrt(np.mean(imdff ** 2))
-    return rmse, 100 if rmse == 0 else 20 * np.log10(255 / rmse)
-
-
 def rgb2ycbcr(im_rgb):
     """Taken from stack overflow and compared to Matlab's"""
     im_rgb = im_rgb.astype(np.float32)
@@ -318,44 +294,25 @@ def rgb2ycbcr(im_rgb):
     return im_ycbcr
 
 
-def NNinterpulation(im, sf):
+def nn_interpolation(im, sf):
     pil_im = Image.fromarray(im)
     return np.array(pil_im.resize((im.shape[1] * sf, im.shape[0] * sf), Image.NEAREST), dtype=im.dtype)
 
 
-def AnalyticKernel(k):
-    # OLD CORRECT IN-EFFICIENT CODE
+def analytic_kernel(k):
+    # Get kernel's size
     k_size = k.shape[0]
+    # Calculate the big kernels size
     big_k = np.zeros((3*k_size - 2, 3*k_size - 2))
+    # Loop over the small kernel to fill the big one
     for r in range(k_size):
         for c in range(k_size):
             big_k[2*r:2*r + k_size, 2*c:2*c + k_size] += k[r, c] * k
-    # return big_k / big_k.sum()
-    # cropped_big_k = big_k[k_size-2:-k_size+2, k_size-2:-k_size+2]
+    # Crop the edges of the big kernel to ignore very small values and increase run time of SR
     crop = k_size // 2
     cropped_big_k = big_k[crop:-crop, crop:-crop]
+    # Normalize to 1
     return cropped_big_k / cropped_big_k.sum()
-
-
-def send_email(s='', m=''):
-    port = 465  # For SSL
-    smtp_server = "smtp.gmail.com"
-    sender_email = "kernelgan@gmail.com"  # Enter your address
-    receiver_email = "sefibk@gmail.com"   # Enter receiver address
-    password = 'kernelgan123'
-
-    message = """Subject: %s
-
-
-    \n
-    %s\n
-    This message was sent from Python.""" % (s, m)
-
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:
-        server.login(sender_email, password)
-        server.sendmail(sender_email, receiver_email, message)
-    print('EMAIL WAS SENT')
 
 
 def back_project_image(lr, sf=2, down_kernel='cubic', up_kernel='cubic', bp_iters=8):
@@ -383,7 +340,7 @@ def save_final_kernel(k, conf):
     k_2 = post_process_k(k, method=conf.sharpening, n=conf.n_filtering, sigma=conf.gaussian)
     sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x2.mat' % conf.input_image_path.split('/')[-1]), {'Kernel': k_2})
     if conf.analytic_sf:
-        k_4 = AnalyticKernel(k_2)
+        k_4 = analytic_kernel(k_2)
         sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x4.mat' % conf.input_image_path.split('/')[-1]), {'Kernel': k_4})
 
 
@@ -392,11 +349,11 @@ def do_SR(k, conf):
     print(conf.do_SR)
     if conf.do_SR:
         k_2 = post_process_k(k, method=conf.sharpening, n=conf.n_filtering, sigma=conf.gaussian)
-        sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x2.mat' % clean_name(conf.input_image_path.split('/')[-1])), {'Kernel': k_2})
+        sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x2.mat' % conf.img_name), {'Kernel': k_2})
         if conf.analytic_sf:
-            sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x4.mat' % clean_name(conf.input_image_path.split('/')[-1])), {'Kernel': AnalyticKernel(k_2)})
-            sr, _ = ZSSR(conf.input_image_path, output_path=conf.output_dir_path, scale_factor=[[2, 2], [4, 4]], kernels=[k_2, AnalyticKernel(k_2)]).run()
+            sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x4.mat' % conf.img_name), {'Kernel': analytic_kernel(k_2)})
+            sr, _ = ZSSR(conf.input_image_path, output_path=conf.output_dir_path, scale_factor=[[2, 2], [4, 4]], kernels=[k_2, analytic_kernel(k_2)]).run()
         else:
             sr, _ = ZSSR(conf.input_image_path, output_path=conf.output_dir_path, scale_factor=2, kernels=[k_2]).run()
         max_val = 255 if sr.dtype == 'uint8' else 1.
-        plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s' % clean_name(conf.input_image_path.split('/')[-1])), sr, vmin=0, vmax=max_val)
+        plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s' % conf.img_name), sr, vmin=0, vmax=max_val)

@@ -85,7 +85,7 @@ class Logger:
         if self.conf.analytic_sf:
             sio.savemat(os.path.join(self.conf.output_dir_path, 'kgan_k_x2_%d.mat' % self.conf.file_idx), {'Kernel': sharper_k})
             sio.savemat(os.path.join(self.conf.output_dir_path, '../kernels/kernel_%d_x2.mat' % self.conf.file_idx), {'Kernel': sharper_k})
-            sharper_k = AnalyticKernel(sharper_k)
+            sharper_k = analytic_kernel(sharper_k)
             sio.savemat(self.conf.output_dir_path + '/kgan_k_x4_%d.mat' % self.conf.file_idx, {'Kernel': sharper_k})
             sio.savemat(os.path.join(self.conf.output_dir_path, '../kernels/kernel_%d_x4.mat' % self.conf.file_idx), {'Kernel': sharper_k})
         else:
@@ -213,8 +213,8 @@ class Visualizer:
         sharper_k = post_process_k(curr_k, method=self.conf.sharpening, n=self.conf.n_filtering, sigma=self.conf.gaussian)
         sharper_no_gaus_k = post_process_k(curr_k, method=self.conf.sharpening, n=self.conf.n_filtering, sigma=0)
         if i == self.conf.max_iters - 1 and self.conf.analytic_sf:
-            sharper_k = AnalyticKernel(sharper_k)
-            sharper_no_gaus_k = shave_a2b(AnalyticKernel(sharper_no_gaus_k), self.k_size_vis)
+            sharper_k = analytic_kernel(sharper_k)
+            sharper_no_gaus_k = shave_a2b(analytic_kernel(sharper_no_gaus_k), self.k_size_vis)
         generator_output = tensor2im(gan.G.forward(gan.G_input))
         input_downscaled_k_gt = shave_a2b(np.clip(imresize(im=tensor2im(gan.G_input), scale_factor=0.5, kernel=self.conf.gt_kernel), 0, 255), generator_output)
         # input_downscaled_k_gt = generator_output

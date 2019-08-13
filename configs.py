@@ -85,7 +85,7 @@ class Config:
         self.parser.add_argument('--ensemble_k', action='store_true', help='if true,runs kgan 5 time and chooses the median values of the kernel')
 
         # Test
-        self.parser.add_argument('--zssr_freq', type=int, default=3000, help='how often to run a SR algorithm with the estimated kernel')
+        self.parser.add_argument('--zsinput_image_pathsr_freq', type=int, default=3000, help='how often to run a SR algorithm with the estimated kernel')
         self.parser.add_argument('--do_SR', action='store_true', help='when activated - SR is not performed')
 
         # other
@@ -97,13 +97,13 @@ class Config:
     def parse(self, args=None):
         """Create the configuration argument"""
         self.conf = self.parser.parse_args(args=args)
-        self.fix_png_tif()
         if self.conf.input_image_path is None:
             print('\n' + '-' * 20, '\nTHERE IS NO IMAGE %d\n' % self.conf.file_idx + '-' * 20 + '\n')
             return self.conf
         print(self.conf)
         self.set_gpu_device()
         self.load_gt_kernel()
+        self.clean_name()
         self.prepare_result_dir()
         self.set_downscaling_kernel()
         self.conf.G_structure = [7, 5, 3, 1, 1, 1]
@@ -123,13 +123,9 @@ class Config:
         # Load Tomer's kernel estimation
         self.conf.tomer_kernel = draw_x(self.conf.G_kernel_size)
 
-    def fix_png_tif(self):
-        """if a .tif image is given - fixes the format"""
-        raw_input_image_path = self.conf.input_image_path.rsplit('.', 1)[0]
-        self.conf.input_image_path = None
-        for suf in ['.png', '.tif', '.jpg', '.bmp']:
-            if os.path.isfile(raw_input_image_path + suf):
-                self.conf.input_image_path = raw_input_image_path + suf
+    def clean_name(self):
+        """Retrieves the clean image file_name for saving purposes"""
+        self.conf.img_name = self.conf.input_image_path.split('/')[-1].split('.')[0].replace('ZSSR', '').replace('X4', '').replace('real', '').replace('__', '')
 
     def prepare_result_dir(self):
         """ Give a proper name to the result folder, create it if doesn't exist & store the code in it (if indicated) """

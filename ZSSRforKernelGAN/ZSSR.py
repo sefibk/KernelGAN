@@ -465,11 +465,3 @@ class ZSSR:
         # These line are needed in order to see the graphics at real time
         self.fig.canvas.draw()
         plt.pause(0.01)
-
-    def fix_png_tif(self, in_im_path, in_gt_path):
-        """if a .tif image is given - fixes the format"""
-        raw_input_image_path = in_im_path.rsplit('.', 1)[0]
-        for suf in ['.png', '.tif', '.jpg']:
-            if os.path.isfile(raw_input_image_path + suf):
-                in_im_path = raw_input_image_path + suf
-        return in_im_path, in_gt_path
