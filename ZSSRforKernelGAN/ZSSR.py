@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import matplotlib.image as img
 from matplotlib.gridspec import GridSpec
-from ZSSR4KGAN.zssr_configs import Config
-from ZSSR4KGAN.zssr_utils import *
+from ZSSRforKernelGAN.zssr_configs import Config
+from ZSSRforKernelGAN.zssr_utils import *
 import numpy as np
 import tensorflow as tf
 

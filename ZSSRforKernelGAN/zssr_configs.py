@@ -1,5 +1,5 @@
 import os
-from ZSSR4KGAN.zssr_utils import prepare_result_dir
+from ZSSRforKernelGAN.zssr_utils import prepare_result_dir
 
 
 class Config:

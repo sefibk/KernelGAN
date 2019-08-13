@@ -8,7 +8,7 @@ import cv2
 import smtplib, ssl
 from imresize import imresize
 import scipy.io as sio
-from ZSSR4KGAN.ZSSR import ZSSR
+from ZSSRforKernelGAN.ZSSR import ZSSR
 import matplotlib.pyplot as plt
 
 

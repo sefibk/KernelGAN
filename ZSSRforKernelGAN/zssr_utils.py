@@ -1,7 +1,8 @@
 import numpy as np
 from math import pi, sin, cos
 from cv2 import warpPerspective, INTER_CUBIC
-from ZSSR4KGAN.imresize import imresize
+# from ZSSRforKernelGAN.imresize import imresize
+from imresize import imresize
 from shutil import copy
 import os
 import glob
