@@ -34,13 +34,12 @@ class KernelGAN:
 
         # Losses
         self.GAN_loss_layer = loss.GANLoss(d_last_layer_size=[1, 1, self.D_output_shape, self.D_output_shape]).cuda()
-        self.bicubic_loss = loss.DownScaleLoss(kernel=conf.bic_kernel, scale_factor=conf.scale_factor).cuda()                                       # G's downscaling should be close to bicubic
-        self.sum2one_loss = loss.SumOfWeightsLoss().cuda()                                                                                          # K should sum to 1
-        self.edges_loss = loss.SparseEdgesLoss(k_size=conf.G_kernel_size).cuda()                                                                    # Weights close to the edges should be small
-        self.centralized_loss = loss.CentralizedLoss(k_size=conf.G_kernel_size, power=conf.centralized_power, scale_factor=conf.scale_factor,
-                                                     func=conf.centralized_func).cuda()                                                             # Kernel's COM should be centered
-        self.negative_loss = loss.NegativeValuesLoss().cuda()                                                             # Kernel's COM should be centered
-        self.sparse_loss = loss.SparsityLoss().cuda()                                                                                               # Kernel should be sparse
+        self.bicubic_loss = loss.DownScaleLoss(kernel=conf.bic_kernel, scale_factor=conf.scale_factor).cuda()
+        self.sum2one_loss = loss.SumOfWeightsLoss().cuda()
+        self.edges_loss = loss.SparseEdgesLoss(k_size=conf.G_kernel_size).cuda()
+        self.centralized_loss = loss.CentralizedLoss(k_size=conf.G_kernel_size, scale_factor=conf.scale_factor).cuda()
+        self.negative_loss = loss.NegativeValuesLoss().cuda()
+        self.sparse_loss = loss.SparsityLoss().cuda()
 
         # Loss coef's
         self.lambda_sum2one = conf.lambda_sum2one
@@ -118,7 +117,6 @@ class KernelGAN:
         self.loss_sum2one = self.sum2one_loss.forward(kernel=self.curr_k)
         self.loss_centralized = self.centralized_loss.forward(kernel=self.curr_k)
         self.loss_sparse = self.sparse_loss.forward(kernel=self.curr_k)
-        self.loss_negative = self.negative_loss.forward(kernel=self.curr_k)
 
         # Sum all losses
         self.total_loss_G = self.loss_G + self.loss_bicubic * self.lambda_bicubic + self.loss_sum2one * self.lambda_sum2one + self.loss_edges * self.lambda_edges + \
