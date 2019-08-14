@@ -41,7 +41,6 @@ class KernelGAN:
                                                      func=conf.centralized_func).cuda()                                                             # Kernel's COM should be centered
         self.negative_loss = loss.NegativeValuesLoss().cuda()                                                             # Kernel's COM should be centered
         self.sparse_loss = loss.SparsityLoss().cuda()                                                                                               # Kernel should be sparse
-        # self.diff_from_GT_loss = loss.DownScaleLoss(kernel=conf.gt_kernel, scale_factor=conf.scale_factor).cuda()                                 # test loss = "Cheating" assuming GT kernel is known
 
         # Loss coef's
         self.lambda_sum2one = conf.lambda_sum2one
@@ -51,18 +50,11 @@ class KernelGAN:
         self.lambda_negative = conf.lambda_negative
         self.lambda_sparse = conf.lambda_sparse
 
-        # Define kernels
-        # ground truth kernel
-        self.gt_kernel = Variable(torch.Tensor(conf.gt_kernel).cuda(), requires_grad=False)
-
         # Define loss function
         self.criterionGAN = self.GAN_loss_layer.forward
 
         # Initialize networks weights
-        if conf.init_G_as_delta:
-            self.G.apply(networks.init_G_as_delta)
-        else:
-            self.G.apply(networks.weights_init_G)
+        self.G.apply(networks.weights_init_G)
         self.D.apply(networks.weights_init_D)
 
         # Optimizers

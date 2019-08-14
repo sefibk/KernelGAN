@@ -338,10 +338,10 @@ def back_projection(y_sr, y_lr, down_kernel, up_kernel, sf=None):
 def save_final_kernel(k, conf):
     """saves the final kernel and the analytic kernel to the results folder"""
     k_2 = post_process_k(k, method=conf.sharpening, n=conf.n_filtering, sigma=conf.gaussian)
-    sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x2.mat' % conf.input_image_path.split('/')[-1]), {'Kernel': k_2})
+    sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x2.mat' % conf.img_name), {'Kernel': k_2})
     if conf.analytic_sf:
         k_4 = analytic_kernel(k_2)
-        sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x4.mat' % conf.input_image_path.split('/')[-1]), {'Kernel': k_4})
+        sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x4.mat' % conf.img_name), {'Kernel': k_4})
 
 
 def do_SR(k, conf):

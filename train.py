@@ -3,21 +3,18 @@ from configs import Config
 from data import DataGenerator
 from kernelGAN import KernelGAN
 from learner import Learner
-from logger import Logger
 from util import move2cpu, do_SR, save_final_kernel
 
 
 def train(conf):
     gan = KernelGAN(conf)
     data = DataGenerator(conf, gan)
-    logger = Logger(conf)
     learner = Learner(conf)
     for iteration, [g_in, d_in] in enumerate(data):
         if iteration == conf.max_iters:
             break
         gan.train(g_in, d_in)
-        logger.log(iteration, gan)
-        learner.update(iteration, gan, logger)
+        learner.update(iteration, gan)
     save_final_kernel(move2cpu(gan.curr_k), conf)
     do_SR(move2cpu(gan.curr_k), conf)
 

@@ -16,8 +16,8 @@ class Config:
         self.conf = None
 
         # Paths
+        self.parser.add_argument('--image_name', default='image1', help='image name for saving purposes')
         self.parser.add_argument('--input_image_path', default=os.path.dirname(__file__) + '/training_data/input.png', help='path to one specific image file')
-        self.parser.add_argument('--gt_kernel_path', default=os.path.dirname(__file__) + '/training_data/kernel.mat', help='path to the true kernel')
         self.parser.add_argument('--output_dir_path', default='/home/sefibe/data/kernelGAN_results', help='Save results to data folder - switch to next row if published')
         self.parser.add_argument('--name', default='KGAN', help='Name of the folder for results')
         self.parser.add_argument('--shot', type=int, default=1, help='The number of the GANs try')
@@ -32,7 +32,6 @@ class Config:
         self.parser.add_argument('--G_chan', type=int, default=64, help='Number of channels in hidden layer in the Generator')
         self.parser.add_argument('--D_chan', type=int, default=64, help='Number of channels in hidden layer in the Discriminator')
         self.parser.add_argument('--G_kernel_size', type=int, default=13, help='The kernel size G is estimating')
-        self.parser.add_argument('--init_G_as_delta', action='store_true', help='Determines if G is initialized as a delta kernel')
         self.parser.add_argument('--D_n_layers', type=int, default=7, help='Discriminators depth')
         self.parser.add_argument('--D_kernel_size', type=int, default=7, help='Discriminators convolution kernels size')
 
@@ -74,9 +73,6 @@ class Config:
 
         # Monitoring & logging
         self.parser.add_argument('--file_idx', type=int, default=0, help='file_idx to transfer to zssr')
-        self.parser.add_argument('--skip_log', action='store_true', help='Determines whether all logs & plots are saves (place flag if runtime is important)')
-        self.parser.add_argument('--log_freq', type=int, default=250, help='frequency of logging')
-        self.parser.add_argument('--display_freq', type=int, default=250, help='frequency of showing training results on screen - must be a multiplier of log_freg')
 
         # Kernel post processing
         self.parser.add_argument('--gaussian', type=float, default=0., help='The sigma of the gaussian added to the kernel; Zero will not add the "noise"')
@@ -102,7 +98,6 @@ class Config:
             return self.conf
         print(self.conf)
         self.set_gpu_device()
-        self.load_gt_kernel()
         self.clean_name()
         self.prepare_result_dir()
         self.set_downscaling_kernel()
@@ -112,33 +107,18 @@ class Config:
         # self.conf.do_SR = True
         return self.conf
 
-    def load_gt_kernel(self):
-        """stores a ground truth kernel. if no .mat file or gt image is given, stores an X"""
-        if os.path.isfile(self.conf.gt_kernel_path):         # If GT kernel is given, use it (only a mat array)
-            mat_file = scipy.io.loadmat(self.conf.gt_kernel_path)
-            self.conf.gt_kernel = mat_file['Kernel']
-        else:        # display an X
-            self.conf.gt_kernel = draw_x(self.conf.G_kernel_size)
-
-        # Load Tomer's kernel estimation
-        self.conf.tomer_kernel = draw_x(self.conf.G_kernel_size)
-
     def clean_name(self):
         """Retrieves the clean image file_name for saving purposes"""
-        self.conf.img_name = self.conf.input_image_path.split('/')[-1].split('.')[0].replace('ZSSR', '').replace('X4', '').replace('real', '').replace('__', '')
+        self.conf.img_name = self.conf.input_image_path.split('/')[-1].split('.')[0].replace('ZSSR', '').replace('X4', '').replace('real', '').replace('__', '').replace('_.', '.')
 
     def prepare_result_dir(self):
         """ Give a proper name to the result folder, create it if doesn't exist & store the code in it (if indicated) """
-        if self.conf.shot > 1:
-            self.conf.name = self.conf.name + 'RUN=%d' % self.conf.shot
-        if not os.path.isdir(os.path.join(self.conf.output_dir_path, 'ZSSR')):
-            os.makedirs(os.path.join(self.conf.output_dir_path, 'ZSSR'))
-        if not os.path.isdir(os.path.join(self.conf.output_dir_path, 'kernels')):
-            os.makedirs(os.path.join(self.conf.output_dir_path, 'kernels'))
-        self.conf.output_dir_path += '/' + self.conf.name + strftime('_%b_%d_%H_%M_%S', localtime())
+        # if not os.path.isdir(os.path.join(self.conf.output_dir_path, 'ZSSR')):
+        #     os.makedirs(os.path.join(self.conf.output_dir_path, 'ZSSR'))
+        # if not os.path.isdir(os.path.join(self.conf.output_dir_path, 'kernels')):
+        #     os.makedirs(os.path.join(self.conf.output_dir_path, 'kernels'))
+        # self.conf.output_dir_path += '/' + self.conf.name + strftime('_%b_%d_%H_%M_%S', localtime())
         os.makedirs(self.conf.output_dir_path)
-        if not self.conf.skip_log:
-            [os.makedirs(self.conf.output_dir_path + '/%s' % x) for x in ['figures', 'ZSSR']]
 
     def set_gpu_device(self):
         """Sets the GPU device if one is given"""
