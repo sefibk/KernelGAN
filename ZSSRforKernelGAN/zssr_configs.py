@@ -1,5 +1,4 @@
 import os
-from ZSSRforKernelGAN.zssr_utils import prepare_result_dir
 
 
 class Config:
@@ -46,8 +45,6 @@ class Config:
     name = ''
     plot_losses = False
 
-    result_path = os.path.dirname(__file__)
-    create_results_dir = True
     input_path = local_dir = os.path.dirname(__file__) + '/test_data'
     create_code_copy = False    # True  # save a copy of the code in the results folder to easily match code changes to results
     display_test_results = True
@@ -58,11 +55,9 @@ class Config:
     grad_based_loss_map = True  # In the case a loss should be calculated w.r.t gradient map
     kernel_gan_iter = 0
 
-    def __init__(self, output_path, scale_factor, back_project_input, is_real_img, noise_scale):
+    def __init__(self, scale_factor, is_real_img, noise_scale):
         self.name = 'kgan_k'
-        self.result_path = output_path + '/ZSSR'
         self.scale_factors = [[scale_factor, scale_factor]] if type(scale_factor) is int else scale_factor
-        self.back_project_input = back_project_input
         if is_real_img:
             print('\nCONFIGURATION IS FOR REAL IMAGES')
             self.back_projection_iters = [0]  # no B.P
@@ -74,10 +69,11 @@ class Config:
         self.filter_shape = ([[3, 3, 3, self.width]] +
                              [[3, 3, self.width, self.width]] * (self.depth-2) +
                              [[3, 3, self.width, 3]])
-        self.result_path = prepare_result_dir(self)
 
 
-"""For real examples change to:
- X2_REAL_CONF.back_projection_iters = [0]
- X2_REAL_CONF.noise_std = 0.0125 """
+"""
+ZSSR's configuration for real images is:
+ back_projection_iters = [0]
+ noise_std = 0.0125
+"""
 

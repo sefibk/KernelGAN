@@ -67,9 +67,9 @@ class ZSSR:
     # Tensorflow graph default
     sess = None
 
-    def __init__(self, input_img_path, output_path, scale_factor=2, kernels=None, back_project_input=False, is_real_img=False, noise_scale=1.):
+    def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1.):
         # Acquire meta parameters configuration from configuration class as a class variable
-        self.conf = Config(output_path, scale_factor, back_project_input, is_real_img, noise_scale)
+        self.conf = Config(scale_factor, is_real_img, noise_scale)
         # Read input image
         self.input = img.imread(input_img_path)
         if self.input.shape[-1] == 4:
@@ -99,11 +99,6 @@ class ZSSR:
 
         # loss maps that correspond to the father sources array
         self.loss_map_sources = [self.loss_map]
-
-        if self.conf.noise_std == 0:
-            print('\n\n NO NOISE IS ADDED TO ZSSR \n\n')
-        else:
-            print('\n\n %.2f IS ADDED TO ZSSR \n\n' % self.conf.noise_std)
 
     def run(self):
         # Run gradually on all scale factors (if only one jump then this loop only happens once)
@@ -137,7 +132,7 @@ class ZSSR:
 
         # Return the final post processed output.
         # noinspection PyUnboundLocalVariable
-        return post_processed_output, post_processed_output
+        return post_processed_output
 
     def build_network(self, meta):
         with self.model.as_default():
@@ -207,10 +202,7 @@ class ZSSR:
         # Note: we specify both output_size and scale_factor. best explained by example: say father size is 9 and sf=2,
         # small_son size is 4. if we upscale by sf=2 we get wrong size, if we upscale to size 9 we get wrong sf.
         # The current imresize implementation supports specifying both.
-        if self.conf.back_project_input:
-            interpolated_lr_son = back_project_image(lr=lr_son, up_kernel=self.conf.upscale_method, sf=self.sf)
-        else:
-            interpolated_lr_son = imresize(lr_son, self.sf, hr_father.shape, self.conf.upscale_method)
+        interpolated_lr_son = imresize(lr_son, self.sf, hr_father.shape, self.conf.upscale_method)
         # Create feed dict
         feed_dict = {'learning_rate:0': self.learning_rate,
                      'lr_son:0': np.expand_dims(interpolated_lr_son, 0),
@@ -224,10 +216,7 @@ class ZSSR:
 
     def forward_pass(self, lr_son, hr_father_shape=None):
         # First gate for the lr-son into the network is interpolation to the size of the father
-        if self.conf.back_project_input:
-            interpolated_lr_son = back_project_image(lr=lr_son, up_kernel=self.conf.upscale_method, sf=self.sf)
-        else:
-            interpolated_lr_son = imresize(lr_son, self.sf, hr_father_shape, self.conf.upscale_method)
+        interpolated_lr_son = imresize(lr_son, self.sf, hr_father_shape, self.conf.upscale_method)
 
         # Create feed dict
         feed_dict = {'lr_son:0': np.expand_dims(interpolated_lr_son, 0)}
@@ -275,21 +264,14 @@ class ZSSR:
 
         # 3. True MSE of simple interpolation for reference (only if ground-truth was given)
         if self.gt_per_sf is not None:
-            if self.conf.back_project_input:
-                interp_sr = back_project_image(lr=self.input, output_shape=self.output_shape, up_kernel=self.conf.upscale_method, sf=self.sf)
-            else:
-                interp_sr = imresize(self.input, self.sf, self.output_shape, self.conf.upscale_method)
+            interp_sr = imresize(self.input, self.sf, self.output_shape, self.conf.upscale_method)
 
             self.interp_mse = self.interp_mse + [np.mean(np.ndarray.flatten(np.square(self.gt_per_sf - interp_sr)))]
         else:
             self.interp_mse = None
 
         # 4. Reconstruction MSE of simple interpolation over downscaled input
-        if self.conf.back_project_input:
-            interp_rec = back_project_image(lr=self.father_to_son(self.input), output_shape=self.input.shape[0:2], up_kernel=self.conf.upscale_method, sf=self.sf)
-        else:
-            # interp_rec = imresize(self.father_to_son(self.input), self.sf, self.input.shape[0:2], self.conf.upscale_method)
-            interp_rec = imresize(self.father_to_son(self.input), self.sf, self.input.shape[:], self.conf.upscale_method)
+        interp_rec = imresize(self.father_to_son(self.input), self.sf, self.input.shape[:], self.conf.upscale_method)
 
         self.interp_rec_mse.append(np.mean(np.ndarray.flatten(np.square(self.input - interp_rec))))
 

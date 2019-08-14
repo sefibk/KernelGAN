@@ -8,6 +8,15 @@ import torch.nn.functional as F
 # noinspection PyAttributeOutsideInit,PyUnresolvedReferences
 class KernelGAN:
     # noinspection PyUnresolvedReferencesl
+
+    # Loss coef's
+    lambda_sum2one = 0.5
+    lambda_bicubic = 5
+    lambda_boundaries = 0.5
+    lambda_centralized = 0
+    lambda_negative = 0
+    lambda_sparse = 0
+
     def __init__(self, conf):
         # Acquire configuration
         self.conf = conf
@@ -36,18 +45,10 @@ class KernelGAN:
         self.GAN_loss_layer = loss.GANLoss(d_last_layer_size=[1, 1, self.D_output_shape, self.D_output_shape]).cuda()
         self.bicubic_loss = loss.DownScaleLoss(kernel=conf.bic_kernel, scale_factor=conf.scale_factor).cuda()
         self.sum2one_loss = loss.SumOfWeightsLoss().cuda()
-        self.edges_loss = loss.SparseEdgesLoss(k_size=conf.G_kernel_size).cuda()
+        self.boundaries_loss = loss.BoundariesLoss(k_size=conf.G_kernel_size).cuda()
         self.centralized_loss = loss.CentralizedLoss(k_size=conf.G_kernel_size, scale_factor=conf.scale_factor).cuda()
         self.negative_loss = loss.NegativeValuesLoss().cuda()
         self.sparse_loss = loss.SparsityLoss().cuda()
-
-        # Loss coef's
-        self.lambda_sum2one = conf.lambda_sum2one
-        self.lambda_bicubic = conf.lambda_bicubic
-        self.lambda_edges = conf.lambda_edges
-        self.lambda_centralized = conf.lambda_centralized
-        self.lambda_negative = conf.lambda_negative
-        self.lambda_sparse = conf.lambda_sparse
 
         # Define loss function
         self.criterionGAN = self.GAN_loss_layer.forward
@@ -72,10 +73,8 @@ class KernelGAN:
         assert d_loss_map is None
 
         self.set_input(g_input, d_input, g_loss_map, d_loss_map)
-        for _ in range(self.conf.G_iters):
-            self.train_g()
-        for _ in range(self.conf.D_iters):
-            self.train_d()
+        self.train_g()
+        self.train_d()
 
     def set_input(self, g_input, d_input, g_loss_map=None, d_loss_map=None):
         assert g_loss_map is None
@@ -103,30 +102,35 @@ class KernelGAN:
         # Generator forward pass
         self.G_pred = self.G.forward(self.G_input)
 
-        # Run generator result through discriminator forward pass
+        # Pass Generators output through Discriminator
         d_pred_fake = self.D.forward(self.G_pred)
 
         # Calculate generator loss, based on discriminator prediction on generator result
         self.loss_G = self.criterionGAN(d_last_layer=d_pred_fake, is_d_input_real=True, grad_map=self.G_loss_map)
 
-        # Loss on the difference of the image from bicubic downscaling
-        self.loss_bicubic = self.bicubic_loss.forward(g_input=self.G_input, g_output=self.G_pred)
-
         # Kernel constraints
-        self.loss_edges = self.edges_loss.forward(kernel=self.curr_k)
-        self.loss_sum2one = self.sum2one_loss.forward(kernel=self.curr_k)
-        self.loss_centralized = self.centralized_loss.forward(kernel=self.curr_k)
-        self.loss_sparse = self.sparse_loss.forward(kernel=self.curr_k)
+        self.apply_constraints()
 
         # Sum all losses
-        self.total_loss_G = self.loss_G + self.loss_bicubic * self.lambda_bicubic + self.loss_sum2one * self.lambda_sum2one + self.loss_edges * self.lambda_edges + \
-                            self.lambda_centralized * self.loss_centralized + self.lambda_sparse * self.loss_sparse + self.lambda_negative * self.loss_negative
+        self.total_loss_G = self.loss_G + self.constraints
 
         # Calculate gradients
         self.total_loss_G.backward()
 
         # Update weights
         self.optimizer_G.step()
+
+    def apply_constraints(self):
+        # Calculate constraints
+        self.loss_bicubic = self.bicubic_loss.forward(g_input=self.G_input, g_output=self.G_pred)
+        self.loss_boundaries = self.boundaries_loss.forward(kernel=self.curr_k)
+        self.loss_sum2one = self.sum2one_loss.forward(kernel=self.curr_k)
+        self.loss_centralized = self.centralized_loss.forward(kernel=self.curr_k)
+        self.loss_sparse = self.sparse_loss.forward(kernel=self.curr_k)
+        # Apply constraints co-efficients
+        self.constraints = self.loss_bicubic * self.lambda_bicubic + self.loss_sum2one * self.lambda_sum2one + \
+                           self.loss_boundaries * self.lambda_boundaries + self.lambda_centralized * self.loss_centralized +\
+                           self.lambda_sparse * self.loss_sparse + self.lambda_negative * self.loss_negative
 
     def train_d(self):
         # Zeroize gradients

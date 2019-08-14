@@ -12,22 +12,20 @@ from ZSSRforKernelGAN.ZSSR import ZSSR
 import matplotlib.pyplot as plt
 
 
-def tensor2im(im_t, imtype=np.uint8):
-    """Copy's the tensor to the cpu & converts it to imtype in range [0,255]"""
-    im_np = np.clip(np.round((np.transpose(move2cpu(im_t).squeeze(0), (1, 2, 0)) + 1) / 2.0 * 255.0), 0, 255)
-    return im_np.astype(imtype)
-
-
 def move2cpu(d):
     """Move data from gpu to cpu"""
     return d.detach().cpu().float().numpy()
 
 
+def tensor2im(im_t):
+    """Copy's the tensor to the cpu & converts it to imtype in range [0,255]"""
+    im_np = np.clip(np.round((np.transpose(move2cpu(im_t).squeeze(0), (1, 2, 0)) + 1) / 2.0 * 255.0), 0, 255)
+    return im_np.astype(np.uint8)
+
+
 def im2tensor(im_np):
-    """Copy's an image to the gpu & converts it to float in range [-1,1]"""
-    # Converts [0,255] --> [0,1]
+    """Copy's an image to the gpu & converts range [0,255] --> [0,1] --> [-1,1]"""
     im_np = im_np / 255.0 if im_np.dtype == 'uint8' else im_np
-    # Converts [0,1] --> [-1,1]
     return torch.FloatTensor(np.transpose(im_np, (2, 0, 1)) * 2.0 - 1.0).unsqueeze(0).cuda()
 
 
@@ -45,19 +43,10 @@ def resize_tensor_w_kernel(im_t, k, sf=None):
     return F.conv2d(im_t, k, stride=round(1/sf), padding=padding)
 
 
-def save_tensor(im_t, path):
-    """Saves a tensor as image"""
-    image_pil = Image.fromarray(tensor2im(im_t), 'RGB')
-    image_pil.save(path)
-
-
-def read_image(path, mode='RGB'):
+def read_image(path):
     """Loads an image"""
-    im = Image.open(path)
-    if mode is not None:
-        im = im.convert(mode)
+    im = Image.open(path).convert('RGB')
     im = np.array(im, dtype=np.uint8)
-    # im = np.array(im, dtype=np.float32) / 255.0
     return im
 
 
@@ -140,7 +129,7 @@ def draw_x(size):
     return np.clip(np.identity(size) + np.flip(np.identity(size), axis=1), a_min=0, a_max=1) / (size * 2)
 
 
-def create_gradient_map(im, window, percent):
+def create_gradient_map(im, window=5, percent=.97):
     """Given an image, creates a magnitude gradient map, convolves with a rect and clips the values
     to create a weighted loss map emphasizing edges in the image"""
     # Calculate gradient map
@@ -195,90 +184,31 @@ def clip_extreme(im, percent):
     return np.clip(im, v_min, v_max) - v_min
 
 
-def post_process_k(k, method, n, sigma):
-    """Post process a kernel with different methods, Default settings do nothing """
-    sharp_k = sharpen_k(k, method)
-    filt_k = filter_n(sharp_k, n)
-    return add_gaussian(filt_k, sigma)
-
-
-def sharpen_k(k, method):
-    """Given a kernel, sharpens it according to wanted method"""
-    if method is None:
-        return k
-    elif method == 'softmax':
-        return softmax(k)
-    elif 'power' in method:
-        power = choose_power_to_raise(k) if 'dynamic' in method else int(method[-1])
-        return raise_by_p(k, power)
-
-
-def raise_by_p(z, p):
-    """Raises the array to the power of p and normalizes"""
-    is_tensor = (type(z) == torch.Tensor)
-    if p % 2 == 0:  # z^p-1*|z| / sum(z^p-1*|z|)
-        return z ** (p-1) * torch.abs(z) / torch.sum(z ** (p-1) * torch.abs(z)) if is_tensor else z ** (p-1) * np.abs(z) / np.sum(z ** (p-1) * np.abs(z))
-    else:   # z^p / sum(z^p)
-        return z ** p / torch.sum(z ** p) if is_tensor else z ** p / np.sum(z ** p)
-
-
-def choose_power_to_raise(k):
-    """Chooses the power to raise k that maximizes similarity to a Gaussian kernel"""
-    # Create a Gaussian kernel
-    target_k = create_gaussian(size=k.shape[0], sigma1=2, is_tensor=type(k) == torch.Tensor)
-    # Raise to the powers 1-5 and choose the one minimizing the MSE
-    min_mse = 1e6
-    for p in range(1, 5):
-        if ((raise_by_p(k, p) - target_k) ** 2).mean() < min_mse:
-            power = p
-    return power
-
-
-def softmax(z, beta=10.):  # exp^z / sum(exp^z)
-    """"Performs softmax on the absolute values of the array and normalizes"""
-    is_tensor = (type(z) == torch.Tensor)
-    return torch.exp(beta * z) / torch.sum(torch.exp(beta * z)) if is_tensor else np.exp(beta * z) / np.sum(np.exp(beta * z))
-
-
-def filter_n(k, n):
-    """Given a kernel, zeroizes n minimal values and normalizes"""
-    if n == 0 or abs(n) >= len(k.flatten()):
-        return k
+def post_process_k(k, n):
+    """Eliminate all values that are negligible w.r.t the big values of the kernel"""
     is_tensor = (type(k) == torch.Tensor)
-    if 0 < n <= 1:    # filter values less than n * max
-        k_n_min = n * max(k.flatten())
-    elif n == -1:
-        k_n_min = filter_energy(k, is_tensor)
-    else:   # choose n largest
-        k_sorted = torch.sort(k.flatten())[0] if is_tensor else np.sort(k.flatten())
-        k_n_min = 0.75 * k_sorted[int(n) - 1] if n < 0 else k_sorted[-int(n) - 1]
+    # Sort K's values in order to find the n-th largest
+    k_sorted = torch.sort(k.flatten())[0] if is_tensor else np.sort(k.flatten())
+    # Define the minimum value as the 0.75 * the n-th largest value
+    k_n_min = 0.75 * k_sorted[-n - 1]
+    # Clip values lower than the minimum value
     filtered_k = torch.clamp(k - k_n_min, min=0, max=100) if is_tensor else np.clip(k - k_n_min, a_min=0, a_max=100)
+    # Normalize to sum to 1
     return filtered_k / filtered_k.sum()
 
 
-def filter_energy(k, is_tensor):
-    """Filter values that reach to 90% of the kernels energy/support"""
-    positive_k = torch.clamp(k, min=0, max=float(k.max())) if is_tensor else np.clip(k, a_min=0, a_max=k.max())
-    target_energy = 0.9 * (positive_k * positive_k).sum()
-    k_sorted = torch.sort(positive_k.flatten())[0] if is_tensor else np.sort(positive_k.flatten())
-    curr_energy = 0
-    idx = len(k_sorted) - 1
-    while curr_energy < target_energy and idx > 0:
-        curr_energy += k_sorted[idx] ** 2
-        idx -= 1
-    return k_sorted[idx]
-
-
-def add_gaussian(k, sigma):
-    """Given a kernel, adds a gaussian and normalizes"""
-    if sigma == 0:
-        return k
-    is_tensor = (type(k) == torch.Tensor)
-    k = k + .5 * create_gaussian(size=k.shape[0], sigma1=sigma, is_tensor=is_tensor)
-    return k / k.sum()
+def create_mask(k_size, penalty_scale):
+    """Generate a mask of weights penalizing values close to kernel's boundaries"""
+    center_size = k_size // 2 + k_size % 2
+    mask = create_gaussian(size=k_size, sigma1=k_size, is_tensor=False)
+    mask = 1 - mask / np.max(mask)
+    margin = (k_size - center_size) // 2 - 1
+    mask[margin:-margin, margin:-margin] = 0
+    return penalty_scale * mask
 
 
 def create_gaussian(size, sigma1, sigma2=-1, is_tensor=False):
+    """Return a Gaussian"""
     func1 = [np.exp(-z ** 2 / (2 * sigma1 ** 2)) / np.sqrt(2 * np.pi * sigma1 ** 2) for z in range(-size // 2 + 1, size // 2 + 1)]
     func2 = func1 if sigma2 == -1 else [np.exp(-z ** 2 / (2 * sigma2 ** 2)) / np.sqrt(2 * np.pi * sigma2 ** 2) for z in range(-size // 2 + 1, size // 2 + 1)]
     return torch.FloatTensor(np.outer(func1, func2)).cuda() if is_tensor else np.outer(func1, func2)
@@ -295,12 +225,13 @@ def rgb2ycbcr(im_rgb):
 
 
 def nn_interpolation(im, sf):
+    """Nearest neighbour interpolation"""
     pil_im = Image.fromarray(im)
     return np.array(pil_im.resize((im.shape[1] * sf, im.shape[0] * sf), Image.NEAREST), dtype=im.dtype)
 
 
 def analytic_kernel(k):
-    # Get kernel's size
+    """Calculate the X4 kernel from the X2 kernel (for proof see appendix in paper)"""
     k_size = k.shape[0]
     # Calculate the big kernels size
     big_k = np.zeros((3*k_size - 2, 3*k_size - 2))
@@ -315,45 +246,24 @@ def analytic_kernel(k):
     return cropped_big_k / cropped_big_k.sum()
 
 
-def back_project_image(lr, sf=2, down_kernel='cubic', up_kernel='cubic', bp_iters=8):
-    """Runs 'bp_iters' iteration of back projection SR technique"""
-    tmp_sr = imresize(lr, sf, kernel=up_kernel)
-    for _ in range(bp_iters):
-        tmp_sr = back_projection(y_sr=tmp_sr, y_lr=lr, down_kernel=down_kernel, up_kernel=up_kernel, sf=sf)
-    return tmp_sr
-
-
-def back_projection(y_sr, y_lr, down_kernel, up_kernel, sf=None):
-    """Projects the error between the downscaled SR image and the LR image"""
-    y_sr += imresize(y_lr - imresize(y_sr,
-                                     scale_factor=1.0 / sf,
-                                     output_shape=y_lr.shape,
-                                     kernel=down_kernel),
-                     scale_factor=sf,
-                     output_shape=y_sr.shape,
-                     kernel=up_kernel)
-    return np.clip(y_sr, 0, 1)
-
-
 def save_final_kernel(k, conf):
     """saves the final kernel and the analytic kernel to the results folder"""
-    k_2 = post_process_k(k, method=conf.sharpening, n=conf.n_filtering, sigma=conf.gaussian)
+    k_2 = post_process_k(k, n=conf.n_filtering)
     sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x2.mat' % conf.img_name), {'Kernel': k_2})
-    if conf.analytic_sf:
+    if conf.X4:
         k_4 = analytic_kernel(k_2)
         sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x4.mat' % conf.img_name), {'Kernel': k_4})
 
 
-def do_SR(k, conf):
+def run_zssr(k, conf):
     """Performs ZSSR with estimated kernel for wanted scale factor"""
-    print(conf.do_SR)
-    if conf.do_SR:
-        k_2 = post_process_k(k, method=conf.sharpening, n=conf.n_filtering, sigma=conf.gaussian)
+    if conf.do_ZSSR:
+        k_2 = post_process_k(k, n=conf.n_filtering)
         sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x2.mat' % conf.img_name), {'Kernel': k_2})
-        if conf.analytic_sf:
+        if conf.X4:
             sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x4.mat' % conf.img_name), {'Kernel': analytic_kernel(k_2)})
-            sr, _ = ZSSR(conf.input_image_path, output_path=conf.output_dir_path, scale_factor=[[2, 2], [4, 4]], kernels=[k_2, analytic_kernel(k_2)]).run()
+            sr = ZSSR(conf.input_image_path, scale_factor=[[2, 2], [4, 4]], kernels=[k_2, analytic_kernel(k_2)]).run()
         else:
-            sr, _ = ZSSR(conf.input_image_path, output_path=conf.output_dir_path, scale_factor=2, kernels=[k_2]).run()
+            sr = ZSSR(conf.input_image_path, scale_factor=2, kernels=[k_2]).run()
         max_val = 255 if sr.dtype == 'uint8' else 1.
         plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s' % conf.img_name), sr, vmin=0, vmax=max_val)

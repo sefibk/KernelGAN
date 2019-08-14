@@ -208,24 +208,6 @@ def kernel_shift(kernel, sf):
     return kernel
 
 
-def prepare_result_dir(conf):
-    if conf.create_results_dir and not os.path.isdir(conf.result_path):
-        # Create results directory
-        os.makedirs(conf.result_path)
-
-        # Put a copy of all *.py files in results path, to be able to reproduce experimental results
-        if conf.create_code_copy and not os.path.isdir(conf.result_path + '/code'):
-            os.makedirs(conf.result_path + '/code')
-            local_dir = os.path.dirname(__file__)
-            for py_file in glob.glob(local_dir + '/*.py'):
-                copy(py_file, conf.result_path + '/ZSSR_code')
-
-        return conf.result_path
-
-    else:
-        return conf.result_path
-
-
 def tensorshave(im, margin):
     shp = tf.shape(im)
     if shp[3] == 3:

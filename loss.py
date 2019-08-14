@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from util import shave_a2b, resize_tensor_w_kernel, create_gaussian, map2tensor
-import numpy as np
+from util import shave_a2b, resize_tensor_w_kernel, create_mask, map2tensor
 
 
 # noinspection PyUnresolvedReferences
@@ -64,21 +63,13 @@ class CentralizedLoss(nn.Module):
                                       torch.matmul(c_sum, self.indices) / torch.sum(kernel))), self.center)
 
 
-class SparseEdgesLoss(nn.Module):
+class BoundariesLoss(nn.Module):
     """ Encourages sparsity of the boundaries by penalizing non-zeros far from the center """
     def __init__(self, k_size):
-        super(SparseEdgesLoss, self).__init__()
-        self.mask = map2tensor(k_size, self.create_mask(k_size, 30))
+        super(BoundariesLoss, self).__init__()
+        self.mask = map2tensor(create_mask(k_size, 30))
         self.zero_label = Variable(torch.zeros(k_size).cuda(), requires_grad=False)
         self.loss = nn.L1Loss()
-
-    def create_mask(self, k_size, penalty_scale):
-        center_size = k_size // 2 + k_size % 2
-        mask = create_gaussian(size=k_size, sigma1=k_size, is_tensor=False)
-        mask = 1 - mask / np.max(mask)
-        margin = (k_size - center_size) // 2 - 1
-        mask[margin:-margin, margin:-margin] = 0
-        return penalty_scale * mask
 
     def forward(self, kernel):
         return self.loss(kernel * self.mask, self.zero_label)

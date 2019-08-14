@@ -5,23 +5,15 @@ class Learner:
     lambda_bicubic_decay_rate = 100.
     update_l_rate_freq = 750
     update_l_rate_rate = 10.
-    lambda_sparse_end = 0
+    lambda_sparse_end = 5
     lambda_centralized_end = 1
     lambda_negative_end = 0
+    lambda_bicubic_min = 5e-6
 
     def __init__(self, conf):
-        # self.lambda_update_freq = conf.lambda_update_freq
-        # self.bic_loss_to_start_change = conf.bic_loss_to_start_change
-        # self.lambda_bicubic_decay_rate = conf.lambda_bicubic_decay_rate
         self.bic_loss_counter = 0
-        self.lambda_bicubic_min = 5e-6
-        # self.update_l_rate_freq = conf.lr_update_freq
-        # self.update_l_rate_rate = conf.lr_update_rate
-        # self.lambda_sparse_end = conf.lambda_sparse_end
-        # self.lambda_centralized_end = conf.lambda_centralized_end
-        # self.lambda_negative_end = conf.lambda_negative_end
-        self.similar_to_bicubic = False   # Determines if similarity to bicubic downscaling is satisfied
-        self.insert_constraints = True    # Switch to false after constraints are inserted
+        self.similar_to_bicubic = False     # Flag indicating when the bicubic similarity is achieved
+        self.insert_constraints = True  # Flag is switched to false once constraints are added to the loss
 
     def update(self, iteration, gan):
         if iteration == 0:
