@@ -10,7 +10,7 @@ class Learner:
     lambda_negative_end = 0
     lambda_bicubic_min = 5e-6
 
-    def __init__(self, conf):
+    def __init__(self):
         self.bic_loss_counter = 0
         self.similar_to_bicubic = False     # Flag indicating when the bicubic similarity is achieved
         self.insert_constraints = True  # Flag is switched to false once constraints are added to the loss

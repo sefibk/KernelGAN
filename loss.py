@@ -12,9 +12,11 @@ class GANLoss(nn.Module):
         super(GANLoss, self).__init__()
         # The loss function is applied after the pixel-wise comparison to the true label (0/1)
         self.loss = nn.L1Loss(reduction='mean')
+        # Make a shape
+        d_last_layer_shape = [1, 1, d_last_layer_size, d_last_layer_size]
         # The two possible label maps are pre-prepared
-        self.label_tensor_fake = Variable(torch.zeros(d_last_layer_size).cuda(), requires_grad=False)
-        self.label_tensor_real = Variable(torch.ones(d_last_layer_size).cuda(), requires_grad=False)
+        self.label_tensor_fake = Variable(torch.zeros(d_last_layer_shape).cuda(), requires_grad=False)
+        self.label_tensor_real = Variable(torch.ones(d_last_layer_shape).cuda(), requires_grad=False)
 
     def forward(self, d_last_layer, is_d_input_real, grad_map):
         # Determine label map according to whether current input to discriminator is real or fake

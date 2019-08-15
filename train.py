@@ -3,22 +3,18 @@ from configs import Config
 from data import DataGenerator
 from kernelGAN import KernelGAN
 from learner import Learner
-from util import move2cpu, run_zssr, save_final_kernel
 
 
 def train(conf):
     gan = KernelGAN(conf)
+    learner = Learner()
     data = DataGenerator(conf, gan)
-    learner = Learner(conf)
-    print('\nRunning KernelGAN on image \"%s\"' % conf.input_image_path)
     for iteration, [g_in, d_in] in enumerate(data):
         if iteration == conf.max_iters:
             break
         gan.train(g_in, d_in)
         learner.update(iteration, gan)
-    save_final_kernel(move2cpu(gan.curr_k), conf)
-    run_zssr(move2cpu(gan.curr_k), conf)
-    print('\nFINISHED RUN (see --Results-- folder)')
+    gan.finish()
 
 
 def main():

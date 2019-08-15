@@ -5,8 +5,6 @@ import numpy as np
 from PIL import Image
 from scipy.signal import convolve2d
 import cv2
-import smtplib, ssl
-from imresize import imresize
 import scipy.io as sio
 from ZSSRforKernelGAN.ZSSR import ZSSR
 import matplotlib.pyplot as plt

@@ -3,6 +3,7 @@ from torch.autograd import Variable
 import loss
 import networks
 import torch.nn.functional as F
+from util import save_final_kernel, run_zssr, move2cpu
 
 
 # noinspection PyAttributeOutsideInit,PyUnresolvedReferences
@@ -42,7 +43,7 @@ class KernelGAN:
         self.curr_k = torch.FloatTensor(conf.G_kernel_size, conf.G_kernel_size).cuda()
 
         # Losses
-        self.GAN_loss_layer = loss.GANLoss(d_last_layer_size=[1, 1, self.D_output_shape, self.D_output_shape]).cuda()
+        self.GAN_loss_layer = loss.GANLoss(d_last_layer_size=self.D_output_shape).cuda()
         self.bicubic_loss = loss.DownScaleLoss(kernel=conf.bic_kernel, scale_factor=conf.scale_factor).cuda()
         self.sum2one_loss = loss.SumOfWeightsLoss().cuda()
         self.boundaries_loss = loss.BoundariesLoss(k_size=conf.G_kernel_size).cuda()
@@ -60,6 +61,8 @@ class KernelGAN:
         # Optimizers
         self.optimizer_G = torch.optim.Adam(self.G.parameters(), lr=conf.g_lr, betas=(conf.beta1, 0.999))
         self.optimizer_D = torch.optim.Adam(self.D.parameters(), lr=conf.d_lr, betas=(conf.beta1, 0.999))
+
+        print('\nRunning KernelGAN on image \"%s\"' % conf.input_image_path)
 
     def calc_curr_k(self):
         """given a generator network, the function calculates the kernel it is imitating"""
@@ -79,9 +82,6 @@ class KernelGAN:
     def set_input(self, g_input, d_input, g_loss_map=None, d_loss_map=None):
         assert g_loss_map is None
         assert d_loss_map is None
-
-        # self.G_input.copy_(g_input)
-        # self.D_input.copy_(d_input)
 
         self.G_input = g_input.contiguous()
         self.D_input = d_input.contiguous()
@@ -156,4 +156,12 @@ class KernelGAN:
         # Update weights
         # Note that only discriminator weights are updated (by definition of the D optimizer)
         self.optimizer_D.step()
+
+    def finish(self):
+        # Move the kernel to the CPU and save
+        final_kernel = move2cpu(self.curr_k)
+        save_final_kernel(final_kernel, self.conf)
+        # Run ZSSR using the estimated kernel (if indicated in configuration)
+        run_zssr(final_kernel, conf)
+        print('\nFINISHED RUN (see --Results-- folder)')
 

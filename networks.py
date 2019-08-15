@@ -19,8 +19,8 @@ class Generator(nn.Module):
         self.final_layer = nn.Conv2d(in_channels=conf.G_chan, out_channels=1, kernel_size=struct[-1], bias=False)
 
         # Calculate number of pixels shaved in the forward pass
-        self.forward_shave = int(conf.input_crop_size * conf.scale_factor) - self.forward(torch.FloatTensor(torch.ones([1, 1, conf.input_crop_size, conf.input_crop_size]))).shape[-1]
         self.output_size = self.forward(torch.FloatTensor(torch.ones([1, 1, conf.input_crop_size, conf.input_crop_size]))).shape[-1]
+        self.forward_shave = int(conf.input_crop_size * conf.scale_factor) - self.output_size
 
     def forward(self, input_tensor):
 
