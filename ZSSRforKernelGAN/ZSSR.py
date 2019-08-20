@@ -1,6 +1,4 @@
-import matplotlib.pyplot as plt
 import matplotlib.image as img
-from matplotlib.gridspec import GridSpec
 from ZSSRforKernelGAN.zssr_configs import Config
 from ZSSRforKernelGAN.zssr_utils import *
 import numpy as np
@@ -276,10 +274,6 @@ class ZSSR:
         # Track the iters in which tests are made for the graphics x axis
         self.mse_steps.append(self.iter)
 
-        # plot losses if needed
-        if self.conf.plot_losses:
-            self.plot()
-
     def train(self):
         # main training loop
         for self.iter in range(self.conf.max_iters):
@@ -382,57 +376,3 @@ class ZSSR:
                 self.base_ind += 1
 
             print('base changed to %.2f' % self.base_sf)
-
-    def plot(self):
-        plots_data, labels = zip(*[(np.array(x), l) for (x, l)
-                                   in zip([self.mse, self.mse_rec, self.interp_mse, self.interp_rec_mse],
-                                          ['True MSE', 'Reconstruct MSE', 'Bicubic to ground truth MSE',
-                                           'Bicubic to reconstruct MSE']) if x is not None])
-
-        # For the first iteration create the figure
-        if not self.iter:
-            # Create figure and split it using GridSpec. Name each region as needed
-            self.fig = plt.figure(figsize=(9.5, 9))
-            grid = GridSpec(4, 4)
-            self.loss_plot_space = plt.subplot(grid[:-1, :])
-            self.lr_son_image_space = plt.subplot(grid[3, 0])
-            self.hr_father_image_space = plt.subplot(grid[3, 3])
-            self.out_image_space = plt.subplot(grid[3, 1])
-
-            # Activate interactive mode for live plot updating
-            plt.ion()
-
-            # Set some parameters for the plots
-            self.loss_plot_space.set_xlabel('step')
-            self.loss_plot_space.set_ylabel('MSE')
-            self.loss_plot_space.grid(True)
-            # self.loss_plot_space.set_yscale('log')
-            self.loss_plot_space.legend()
-            self.plots = [None] * 4
-
-            # loop over all needed plot types. if some data is none than skip, if some data is one value tile it
-            self.plots = self.loss_plot_space.plot(*[[0]] * 2 * len(plots_data))
-
-        # Update plots
-        for plot, plot_data in zip(self.plots, plots_data):
-            plot.set_data(self.mse_steps, plot_data)
-
-            self.loss_plot_space.set_xlim([0, self.iter + 1])
-            all_losses = np.array(plots_data)
-            self.loss_plot_space.set_ylim([np.min(all_losses)*0.9, np.max(all_losses)*1.1])
-
-        # Mark learning rate changes
-        for iter_num in self.learning_rate_change_iter_nums:
-            self.loss_plot_space.axvline(iter_num)
-
-        # Add legend to graphics
-        self.loss_plot_space.legend(labels)
-
-        # Show current input and output images
-        self.lr_son_image_space.imshow(self.lr_son, vmin=0.0, vmax=1.0)
-        self.out_image_space.imshow(self.train_output, vmin=0.0, vmax=1.0)
-        self.hr_father_image_space.imshow(self.hr_father, vmin=0.0, vmax=1.0)
-
-        # These line are needed in order to see the graphics at real time
-        self.fig.canvas.draw()
-        plt.pause(0.01)
