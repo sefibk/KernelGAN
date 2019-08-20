@@ -99,7 +99,7 @@ def pad_a2b(a, b):
     return ans
 
 
-def est_k_from_2_imgs(big_im, sml_im, k_size=7, sf=2):
+def est_k_from_2_imgs(big_im, sml_im, k_size=13, sf=2):
     """ Calculate a size x size kernel by solving least squares of relations between big and small image
     starting from the top left of the image after ignoring padding: A * kernel[:] = b """
     # Load and convert gray-scale
@@ -116,11 +116,8 @@ def est_k_from_2_imgs(big_im, sml_im, k_size=7, sf=2):
             vec_b[(row-edge) * (col-edge) + col-edge] = sml_im[row, col]
             top, left = sf * row - k_size // 2, sf * col - k_size//2
             mat_a[(row-edge) * (col-edge) + col - edge, :] = np.reshape(big_im[top:top + k_size, left:left + k_size], newshape=(1, -1))
-
-    if np.isfinite(np.linalg.cond(mat_a)):  # If A is invertible - solve the linear equation
-        return np.reshape(np.squeeze(np.linalg.lstsq(mat_a, vec_b, rcond=None))[0], newshape=(k_size, k_size))
-    else:   # Otherwise return an X shape
-        return draw_x(k_size)
+    # If A is invertible - solve the linear equation otherwise return an X shape
+    return np.reshape(np.squeeze(np.linalg.lstsq(mat_a, vec_b, rcond=None))[0], newshape=(k_size, k_size)) if np.isfinite(np.linalg.cond(mat_a)) else draw_x(k_size)
 
 
 def draw_x(size):
@@ -264,4 +261,4 @@ def run_zssr(k, conf):
         else:
             sr = ZSSR(conf.input_image_path, scale_factor=2, kernels=[k_2]).run()
         max_val = 255 if sr.dtype == 'uint8' else 1.
-        plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s' % conf.img_name), sr, vmin=0, vmax=max_val)
+        plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s' % conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)

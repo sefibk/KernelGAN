@@ -7,7 +7,6 @@ class Learner:
     update_l_rate_rate = 10.
     lambda_sparse_end = 5
     lambda_centralized_end = 1
-    lambda_negative_end = 0
     lambda_bicubic_min = 5e-6
 
     def __init__(self):
@@ -40,6 +39,5 @@ class Learner:
             if self.insert_constraints and gan.lambda_bicubic < 5e-3:
                 gan.lambda_centralized = self.lambda_centralized_end
                 gan.lambda_sparse = self.lambda_sparse_end
-                gan.lambda_negative = self.lambda_negative_end
                 self.insert_constraints = False
 

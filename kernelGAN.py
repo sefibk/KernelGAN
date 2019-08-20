@@ -15,7 +15,6 @@ class KernelGAN:
     lambda_bicubic = 5
     lambda_boundaries = 0.5
     lambda_centralized = 0
-    lambda_negative = 0
     lambda_sparse = 0
 
     def __init__(self, conf):
@@ -44,11 +43,10 @@ class KernelGAN:
 
         # Losses
         self.GAN_loss_layer = loss.GANLoss(d_last_layer_size=self.D_output_shape).cuda()
-        self.bicubic_loss = loss.DownScaleLoss(kernel=conf.bic_kernel, scale_factor=conf.scale_factor).cuda()
+        self.bicubic_loss = loss.DownScaleLoss(scale_factor=conf.scale_factor).cuda()
         self.sum2one_loss = loss.SumOfWeightsLoss().cuda()
         self.boundaries_loss = loss.BoundariesLoss(k_size=conf.G_kernel_size).cuda()
         self.centralized_loss = loss.CentralizedLoss(k_size=conf.G_kernel_size, scale_factor=conf.scale_factor).cuda()
-        self.negative_loss = loss.NegativeValuesLoss().cuda()
         self.sparse_loss = loss.SparsityLoss().cuda()
 
         # Define loss function
@@ -130,7 +128,7 @@ class KernelGAN:
         # Apply constraints co-efficients
         self.constraints = self.loss_bicubic * self.lambda_bicubic + self.loss_sum2one * self.lambda_sum2one + \
                            self.loss_boundaries * self.lambda_boundaries + self.lambda_centralized * self.loss_centralized +\
-                           self.lambda_sparse * self.loss_sparse + self.lambda_negative * self.loss_negative
+                           self.lambda_sparse * self.loss_sparse
 
     def train_d(self):
         # Zeroize gradients
@@ -161,7 +159,8 @@ class KernelGAN:
         # Move the kernel to the CPU and save
         final_kernel = move2cpu(self.curr_k)
         save_final_kernel(final_kernel, self.conf)
+        print('\nCompleted KernelGAN estimation')
         # Run ZSSR using the estimated kernel (if indicated in configuration)
-        run_zssr(final_kernel, conf)
+        run_zssr(final_kernel, self.conf)
         print('\nFINISHED RUN (see --Results-- folder)')
 

@@ -20,8 +20,7 @@ class Config:
     back_projection_iters = [2]  # for each scale num of bp iterations (same length as scale_factors)
     random_crop = True
     crop_size = 128
-    noise_std = 0. # adding noise to lr-sons. small for real images, bigger for noisy images and zero for ideal case
-    # noise_std = 0.0125  # adding noise to lr-sons. small for real images, bigger for noisy images and zero for ideal case
+    noise_std = 0.  # adding noise to lr-sons. small for real images, bigger for noisy images and zero for ideal case
     init_net_for_each_sf = False  # for gradual sr- should we optimize from the last sf or initialize each time?
 
     # Params concerning learning rate policy
@@ -41,14 +40,10 @@ class Config:
     # params related to test and display
     run_test = True
     run_test_every = 50
-    display_every = 1000
     name = ''
     plot_losses = False
 
     input_path = local_dir = os.path.dirname(__file__) + '/test_data'
-    create_code_copy = False    # True  # save a copy of the code in the results folder to easily match code changes to results
-    display_test_results = True
-    save_results = True
     allow_scale_in_no_interp = False
     rgb_aug_for_train = False
     rgb_aug_for_bp = False
@@ -56,13 +51,11 @@ class Config:
     kernel_gan_iter = 0
 
     def __init__(self, scale_factor, is_real_img, noise_scale):
-        self.name = 'kgan_k'
         self.scale_factors = [[scale_factor, scale_factor]] if type(scale_factor) is int else scale_factor
         if is_real_img:
             print('\nCONFIGURATION IS FOR REAL IMAGES')
             self.back_projection_iters = [0]  # no B.P
             self.noise_std = 0.0125 * noise_scale   # Add noise to sons
-            print('ZSSR adds noise of: %.4f\n' % self.noise_std)
         if type(self.scale_factors[0]) is list:   # for gradual SR
             self.back_projection_iters = [self.back_projection_iters[0], self.back_projection_iters[0]]
         # network meta params that by default are determined (by other params) by other params but can be changed

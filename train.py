@@ -1,4 +1,6 @@
 import os
+import tqdm
+
 from configs import Config
 from data import DataGenerator
 from kernelGAN import KernelGAN
@@ -9,9 +11,11 @@ def train(conf):
     gan = KernelGAN(conf)
     learner = Learner()
     data = DataGenerator(conf, gan)
-    for iteration, [g_in, d_in] in enumerate(data):
-        if iteration == conf.max_iters:
-            break
+    # for iteration, [g_in, d_in] in enumerate(data):
+    #     if iteration == conf.max_iters:
+    #         break
+    for iteration in tqdm.tqdm(range(conf.max_iters)):
+        [g_in, d_in] = data.__getitem__(iteration)
         gan.train(g_in, d_in)
         learner.update(iteration, gan)
     gan.finish()

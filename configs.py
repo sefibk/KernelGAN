@@ -52,14 +52,13 @@ class Config:
         self.set_gpu_device()
         self.clean_file_name()
         self.set_output_directory()
-        self.set_downscaling_kernel()
         self.conf.G_structure = [7, 5, 3, 1, 1, 1]
         return self.conf
 
     def clean_file_name(self):
         """Retrieves the clean image file_name for saving purposes"""
-        self.conf.img_name = self.conf.input_image_path.split('/')[-1].split('.')[0].replace('ZSSR', '').\
-            replace('X4', '').replace('real', '').replace('__', '').replace('_.', '.')
+        self.conf.img_name = self.conf.input_image_path.split('/')[-1].replace('ZSSR', '')\
+            .replace('real', '').replace('__', '').split('_.')[0].split('.')[0]
 
     def set_gpu_device(self):
         """Sets the GPU device if one is given"""
@@ -72,17 +71,7 @@ class Config:
     def set_output_directory(self):
         """Define the output directory name and create the folder"""
         self.conf.output_dir_path = os.path.join('Results', self.conf.img_name)
+        while os.path.isdir(self.conf.output_dir_path):
+            self.conf.output_dir_path += 'l'
         os.makedirs(self.conf.output_dir_path)
-
-    def set_downscaling_kernel(self):
-        """The kernel used for DownScaleLoss"""
-        # A pre-prepared 8x8 bicubic kernel for DownScaleLoss
-        self.conf.bic_kernel = [[0.0001373291015625,  0.0004119873046875, -0.0013275146484375, -0.0050811767578125, -0.0050811767578125, -0.0013275146484375,  0.0004119873046875,  0.0001373291015625],
-                                [0.0004119873046875,  0.0012359619140625, -0.0039825439453125, -0.0152435302734375, -0.0152435302734375, -0.0039825439453125,  0.0012359619140625,  0.0004119873046875],
-                                [-.0013275146484375, -0.0039825439453130,  0.0128326416015625,  0.0491180419921875,  0.0491180419921875,  0.0128326416015625, -0.0039825439453125, -0.0013275146484375],
-                                [-.0050811767578125, -0.0152435302734375,  0.0491180419921875,  0.1880035400390630,  0.1880035400390630,  0.0491180419921875, -0.0152435302734375, -0.0050811767578125],
-                                [-.0050811767578125, -0.0152435302734375,  0.0491180419921875,  0.1880035400390630,  0.1880035400390630,  0.0491180419921875, -0.0152435302734375, -0.0050811767578125],
-                                [-.0013275146484380, -0.0039825439453125,  0.0128326416015625,  0.0491180419921875,  0.0491180419921875,  0.0128326416015625, -0.0039825439453125, -0.0013275146484375],
-                                [0.0004119873046875,  0.0012359619140625, -0.0039825439453125, -0.0152435302734375, -0.0152435302734375, -0.0039825439453125,  0.0012359619140625,  0.0004119873046875],
-                                [0.0001373291015625,  0.0004119873046875, -0.0013275146484375, -0.0050811767578125, -0.0050811767578125, -0.0013275146484375,  0.0004119873046875,  0.0001373291015625]]
 

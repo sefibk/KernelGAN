@@ -68,6 +68,7 @@ class ZSSR:
     sess = None
 
     def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1.):
+        print('~'*40, '\nZSSR verbose I-G-N-O-R-E-!\n')
         # Acquire meta parameters configuration from configuration class as a class variable
         self.conf = Config(scale_factor, is_real_img, noise_scale)
         # Read input image
@@ -132,6 +133,7 @@ class ZSSR:
 
         # Return the final post processed output.
         # noinspection PyUnboundLocalVariable
+        print('ZSSR verbose ended\n', '~'*40)
         return post_processed_output
 
     def build_network(self, meta):
@@ -238,13 +240,9 @@ class ZSSR:
             # We take the the standard deviation as a measure
             std = np.sqrt(var)
 
-            # Verbose
-            # print('slope: ', slope, 'STD: ', std)
-
             # Determine learning rate maintaining or reduction by the ration between slope and noise
             if -self.conf.learning_rate_change_ratio * slope < std:
                 self.learning_rate /= 10
-                # print("learning rate updated: ", self.learning_rate)
 
                 # Keep track of learning rate changes for plotting purposes
                 self.learning_rate_change_iter_nums.append(self.iter)
@@ -278,11 +276,6 @@ class ZSSR:
         # Track the iters in which tests are made for the graphics x axis
         self.mse_steps.append(self.iter)
 
-        # Display test results if indicated
-        if self.conf.display_test_results and self.iter % self.conf.display_every == 0:
-            print('iteration: ', self.iter, 'reconstruct mse:', self.mse_rec[-1], ', true mse:',
-                  (self.mse[-1] if self.mse else None))
-
         # plot losses if needed
         if self.conf.plot_losses:
             self.plot()
@@ -314,10 +307,6 @@ class ZSSR:
             self.lr_son = self.father_to_son(self.hr_father)
             # run network forward and back propagation, one iteration (This is the heart of the training)
             self.train_output = self.forward_backward_pass(self.lr_son, self.hr_father, self.cropped_loss_map)
-
-            # Display info & save weights
-            if not self.iter % self.conf.display_every and self.conf.display_test_results:
-                print('sf:', self.sf*self.base_sf, ', iteration: ', self.iter, ', loss: ', self.loss[self.iter])
 
             # Test network
             if self.conf.run_test and (not self.iter % self.conf.run_test_every):
