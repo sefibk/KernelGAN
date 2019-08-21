@@ -12,7 +12,7 @@ class Learner:
     def __init__(self):
         self.bic_loss_counter = 0
         self.similar_to_bicubic = False     # Flag indicating when the bicubic similarity is achieved
-        self.insert_constraints = True  # Flag is switched to false once constraints are added to the loss
+        self.insert_constraints = True      # Flag is switched to false once constraints are added to the loss
 
     def update(self, iteration, gan):
         if iteration == 0:

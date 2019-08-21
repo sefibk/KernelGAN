@@ -1,16 +1,12 @@
 import torch
-from torch.autograd import Variable
 import loss
 import networks
 import torch.nn.functional as F
 from util import save_final_kernel, run_zssr, move2cpu
 
 
-# noinspection PyAttributeOutsideInit,PyUnresolvedReferences
 class KernelGAN:
-    # noinspection PyUnresolvedReferencesl
-
-    # Loss coef's
+    # Loss co-efficients
     lambda_sum2one = 0.5
     lambda_bicubic = 5
     lambda_boundaries = 0.5
@@ -62,6 +58,7 @@ class KernelGAN:
 
         print('\nRunning KernelGAN on image \"%s\"' % conf.input_image_path)
 
+    # noinspection PyUnboundLocalVariable
     def calc_curr_k(self):
         """given a generator network, the function calculates the kernel it is imitating"""
         delta = torch.Tensor([1.]).unsqueeze(0).unsqueeze(-1).unsqueeze(-1).cuda()
@@ -127,7 +124,7 @@ class KernelGAN:
         self.loss_sparse = self.sparse_loss.forward(kernel=self.curr_k)
         # Apply constraints co-efficients
         self.constraints = self.loss_bicubic * self.lambda_bicubic + self.loss_sum2one * self.lambda_sum2one + \
-                           self.loss_boundaries * self.lambda_boundaries + self.lambda_centralized * self.loss_centralized +\
+                           self.loss_boundaries * self.lambda_boundaries + self.lambda_centralized * self.loss_centralized + \
                            self.lambda_sparse * self.loss_sparse
 
     def train_d(self):
@@ -147,20 +144,15 @@ class KernelGAN:
         self.loss_D_real = self.criterionGAN(self.d_pred_real, is_d_input_real=True, grad_map=self.D_loss_map)
         self.loss_D = (self.loss_D_real + self.loss_D_fake) * 0.5
 
-        # Calculate gradients
-        # Note that gradients are not propagating back through generator
+        # Calculate gradients, note that gradients are not propagating back through generator
         self.loss_D.backward()
 
-        # Update weights
-        # Note that only discriminator weights are updated (by definition of the D optimizer)
+        # Update weights, note that only discriminator weights are updated (by definition of the D optimizer)
         self.optimizer_D.step()
 
     def finish(self):
-        # Move the kernel to the CPU and save
         final_kernel = move2cpu(self.curr_k)
         save_final_kernel(final_kernel, self.conf)
         print('\nCompleted KernelGAN estimation')
-        # Run ZSSR using the estimated kernel (if indicated in configuration)
         run_zssr(final_kernel, self.conf)
         print('\nFINISHED RUN (see --Results-- folder)')
-

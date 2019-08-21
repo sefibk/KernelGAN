@@ -3,7 +3,6 @@ import os
 
 class Config:
     # network meta params
-    python_path = '/usr/wisdom/python3'
     scale_factors = [[2.0, 2.0]]  # list of pairs (vertical, horizontal) for gradual increments in resolution
     base_change_sfs = []  # list of scales after which the input is changed to be the output (recommended for high sfs)
     max_iters = 3000
@@ -40,15 +39,9 @@ class Config:
     # params related to test and display
     run_test = True
     run_test_every = 50
-    name = ''
-    plot_losses = False
 
-    input_path = local_dir = os.path.dirname(__file__) + '/test_data'
     allow_scale_in_no_interp = False
-    rgb_aug_for_train = False
-    rgb_aug_for_bp = False
     grad_based_loss_map = True  # In the case a loss should be calculated w.r.t gradient map
-    kernel_gan_iter = 0
 
     def __init__(self, scale_factor, is_real_img, noise_scale):
         self.scale_factors = [[scale_factor, scale_factor]] if type(scale_factor) is int else scale_factor

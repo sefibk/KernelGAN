@@ -1,13 +1,14 @@
 import os
+import cv2
 import torch
-from torch.nn import functional as F
 import numpy as np
 from PIL import Image
-from scipy.signal import convolve2d
-import cv2
 import scipy.io as sio
-from ZSSRforKernelGAN.ZSSR import ZSSR
 import matplotlib.pyplot as plt
+from scipy.signal import convolve2d
+from torch.nn import functional as F
+
+from ZSSRforKernelGAN.ZSSR import ZSSR
 
 
 def move2cpu(d):
@@ -68,60 +69,12 @@ def shave_a2b(a, b):
         b = [b.shape[2], b.shape[3]] if (type(b) == torch.Tensor) else [b.shape[0], b.shape[1]]
     if b[0] > a.shape[0] and b[1] < a.shape[1]:
         return a
-    # Calculate how much to crop from each side
+    # Calculate the shaving of each dimension
     shave_r = a.shape[2] - b[0] if is_tensor else a.shape[0] - b[0]
     shave_c = a.shape[3] - b[1] if is_tensor else a.shape[1] - b[1]
     if len(a.shape) == 2:
         return a[shave_r//2:-shave_r//2, shave_c//2:-shave_c//2]
     return a[:, :, shave_r//2:-shave_r//2, shave_c//2:-shave_c//2] if is_tensor else a[shave_r//2:-shave_r//2, shave_c//2:-shave_c//2, :]
-
-
-def pad_a2b(a, b):
-    """Given a small image or tensor 'a', pad it symmetrically with the minimum value into b's shape"""
-    # if dealing with a tensor should shave the 3rd & 4th dimension, o.w. the 1st and 2nd
-    is_tensor = (type(a) == torch.Tensor)
-    # If b is just the wanted size, create a zero tensor/im of that size
-    if type(b) == int:
-        b = torch.zeros((1, 1, b, b)) if is_tensor else np.zeros((b, b))
-    if b.shape < a.shape:
-        return a
-    # Calculate how much to pad on each side and if to pad a-symmetrically if one is odd and the other is zero
-    pad_r, extra_r = (b.shape[-2] - a.shape[-2]) // 2, (b.shape[-2] - a.shape[-2]) % 2
-    pad_c, extra_c = (b.shape[-1] - a.shape[-1]) // 2, (b.shape[-1] - a.shape[-1]) % 2
-    # Create the ans tensor or numpy and pad with the minimal value
-    # ans = torch.zeros_like(b) + a.min() if is_tensor else np.zeros_like(b) + a.min()
-    ans = torch.zeros_like(b) if is_tensor else np.zeros_like(b)
-    last_col, last_row = ans.shape[-1], ans.shape[-2]
-    if is_tensor:
-        ans[:, :, pad_r:last_row-pad_r-extra_r, pad_c:last_col-pad_c-extra_c] = a
-    else:
-        ans[pad_r:last_row-pad_r-extra_r, pad_c:last_col-pad_c-extra_c] = a
-    return ans
-
-
-def est_k_from_2_imgs(big_im, sml_im, k_size=13, sf=2):
-    """ Calculate a size x size kernel by solving least squares of relations between big and small image
-    starting from the top left of the image after ignoring padding: A * kernel[:] = b """
-    # Load and convert gray-scale
-    if type(big_im) is str:
-        big_im, sml_im = read_image(big_im), read_image(sml_im)
-    big_im, sml_im = rgb2gray(big_im), rgb2gray(sml_im)
-    # Calculate the size of edges affected by padding
-    edge = (k_size // 2) // sf + (k_size // 2) % sf
-    # Init. A s.t. every row is a block convolved with the kernel, and b as the result
-    rows, cols = sml_im.shape[0], sml_im.shape[1]
-    mat_a, vec_b = np.zeros(shape=((rows - 2 * edge) * (cols - 2 * edge), k_size ** 2)), np.zeros(shape=((rows - 2 * edge) * (cols - 2 * edge), 1))
-    for row in range(edge + 1, rows - edge):    # Fill in A and b
-        for col in range(edge + 1, cols - edge):
-            vec_b[(row-edge) * (col-edge) + col-edge] = sml_im[row, col]
-            top, left = sf * row - k_size // 2, sf * col - k_size//2
-            mat_a[(row-edge) * (col-edge) + col - edge, :] = np.reshape(big_im[top:top + k_size, left:left + k_size], newshape=(1, -1))
-    # If A is invertible - solve the linear equation otherwise return an X shape
-    return np.reshape(np.squeeze(np.linalg.lstsq(mat_a, vec_b, rcond=None))[0], newshape=(k_size, k_size)) if np.isfinite(np.linalg.cond(mat_a)) else draw_x(k_size)
-
-
-def draw_x(size):
-    return np.clip(np.identity(size) + np.flip(np.identity(size), axis=1), a_min=0, a_max=1) / (size * 2)
 
 
 def create_gradient_map(im, window=5, percent=.97):
@@ -207,16 +160,6 @@ def create_gaussian(size, sigma1, sigma2=-1, is_tensor=False):
     func1 = [np.exp(-z ** 2 / (2 * sigma1 ** 2)) / np.sqrt(2 * np.pi * sigma1 ** 2) for z in range(-size // 2 + 1, size // 2 + 1)]
     func2 = func1 if sigma2 == -1 else [np.exp(-z ** 2 / (2 * sigma2 ** 2)) / np.sqrt(2 * np.pi * sigma2 ** 2) for z in range(-size // 2 + 1, size // 2 + 1)]
     return torch.FloatTensor(np.outer(func1, func2)).cuda() if is_tensor else np.outer(func1, func2)
-
-
-def rgb2ycbcr(im_rgb):
-    """Taken from stack overflow and compared to Matlab's"""
-    im_rgb = im_rgb.astype(np.float32)
-    im_ycrcb = cv2.cvtColor(im_rgb, cv2.COLOR_RGB2YCR_CB)
-    im_ycbcr = im_ycrcb[:, :, (0, 2, 1)].astype(np.float32)
-    im_ycbcr[:, :, 0] = (im_ycbcr[:, :, 0] * (235 - 16) + 16) / 255.0  # to [16/255, 235/255]
-    im_ycbcr[:, :, 1:] = (im_ycbcr[:, :, 1:] * (240 - 16) + 16) / 255.0  # to [16/255, 240/255]
-    return im_ycbcr
 
 
 def nn_interpolation(im, sf):

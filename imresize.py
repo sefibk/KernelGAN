@@ -19,7 +19,7 @@ def imresize(im, scale_factor=None, output_shape=None, kernel=None, antialiasing
         "lanczos3": (lanczos3, 6.0),
         "box": (box, 1.0),
         "linear": (linear, 2.0),
-        None: (cubic, 4.0)  # set default interpolation method as cubic
+        None: (cubic, 4.0)  # default interpolation method is cubic
     }.get(kernel)
 
     # Antialiasing is only used when downscaling

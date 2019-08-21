@@ -61,7 +61,7 @@ class DataGenerator(Dataset):
 
     def shave_edges(self, scale_factor, real_image):
         """Shave pixels from edges to avoid code-bugs"""
-        # Crop 10 pixels to avoid boundaries effects in artificially generated examples
+        # Crop 10 pixels to avoid boundaries effects in synthetically generated examples
         if not real_image:
             self.input_image = self.input_image[10:-10, 10:-10, :]
         # Crop pixels for the shape to be divisible by the scale factor

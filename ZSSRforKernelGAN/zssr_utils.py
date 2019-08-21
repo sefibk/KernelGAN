@@ -1,11 +1,7 @@
 import numpy as np
 from math import pi, sin, cos
 from cv2 import warpPerspective, INTER_CUBIC
-# from ZSSRforKernelGAN.imresize import imresize
 from imresize import imresize
-from shutil import copy
-import os
-import glob
 from scipy.ndimage import measurements, interpolation
 from scipy.io import loadmat
 from scipy.signal import convolve2d
@@ -34,7 +30,7 @@ def random_augment(ims,
     if random_chooser < leave_as_is_probability:
         mode = 'leave_as_is'
 
-    # Option 2: Only non-interpolated augmentation, which means 8 possible augs (4 rotations X 2 mirror flips)
+    # Option 2: Only non-interpolated augmentation, which means 8 possible augmentations (4 rotations X 2 mirror flips)
     elif leave_as_is_probability < random_chooser < leave_as_is_probability + no_interpolate_probability:
         mode = 'no_interp'
 
@@ -123,7 +119,6 @@ def random_augment(ims,
                              [-sin(theta), cos(theta), 0],
                              [0, 0, 1]])
 
-    # todo: solving the shift_mat for rotated images when a specific crop is given
     if crop_center is not None:
         tmp_shift_y = shift_y
         rotation_indicator = (rotation_indicator * reflect) % 4
@@ -163,7 +158,8 @@ def random_augment(ims,
                      .dot(shift_to_center_mat))
 
     # Apply transformation to image and return the transformed image clipped between 0-1
-    return np.clip(warpPerspective(im, transform_mat, (crop_size, crop_size), flags=INTER_CUBIC), 0, 1), warpPerspective(loss_map_sources[scale_ind], transform_mat, (crop_size, crop_size), flags=INTER_CUBIC)
+    return np.clip(warpPerspective(im, transform_mat, (crop_size, crop_size), flags=INTER_CUBIC), 0, 1), \
+           warpPerspective(loss_map_sources[scale_ind], transform_mat, (crop_size, crop_size), flags=INTER_CUBIC)
 
 
 def preprocess_kernels(kernels, conf):
@@ -190,12 +186,10 @@ def kernel_shift(kernel, sf):
 
     # First calculate the current center of mass for the kernel
     current_center_of_mass = measurements.center_of_mass(kernel)
-    # print('K_size = %d, COM = ' % kernel.shape[0], current_center_of_mass)
 
     # The second term ("+ 0.5 * ....") is for applying condition 2 from the comments above
     wanted_center_of_mass = np.array(kernel.shape) // 2 + 0.5 * (np.array(sf) - (np.array(kernel.shape) % 2))
-    # print('Wanted COM = ', wanted_center_of_mass)
-     # Define the shift vector for the kernel shifting (x,y)
+    # Define the shift vector for the kernel shifting (x,y)
     shift_vec = wanted_center_of_mass - current_center_of_mass
     # Before applying the shift, we first pad the kernel so that nothing is lost due to the shift
     # (biggest shift among dims + 1 for safety)
@@ -203,7 +197,6 @@ def kernel_shift(kernel, sf):
 
     # Finally shift the kernel and return
     kernel = interpolation.shift(kernel, shift_vec)
-    # print('Post processed k_size =', kernel.shape[0], 'COM = ', measurements.center_of_mass(kernel))
 
     return kernel
 

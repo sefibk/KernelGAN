@@ -38,11 +38,11 @@ class DownScaleLoss(nn.Module):
                      [-.0013275146484380, -0.0039825439453125,  0.0128326416015625,  0.0491180419921875,  0.0491180419921875,  0.0128326416015625, -0.0039825439453125, -0.0013275146484375],
                      [0.0004119873046875,  0.0012359619140625, -0.0039825439453125, -0.0152435302734375, -0.0152435302734375, -0.0039825439453125,  0.0012359619140625,  0.0004119873046875],
                      [0.0001373291015625,  0.0004119873046875, -0.0013275146484375, -0.0050811767578125, -0.0050811767578125, -0.0013275146484375,  0.0004119873046875,  0.0001373291015625]]
-        self.kernel = Variable(torch.Tensor(bicubic_k).cuda(), requires_grad=False)
+        self.bicubic_kernel = Variable(torch.Tensor(bicubic_k).cuda(), requires_grad=False)
         self.scale_factor = scale_factor
 
     def forward(self, g_input, g_output):
-        downscaled = resize_tensor_w_kernel(im_t=g_input, k=self.kernel, sf=self.scale_factor)
+        downscaled = resize_tensor_w_kernel(im_t=g_input, k=self.bicubic_kernel, sf=self.scale_factor)
         # Shave the downscaled to fit g_output
         return self.loss(g_output, shave_a2b(downscaled, g_output))
 

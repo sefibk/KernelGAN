@@ -66,7 +66,7 @@ class ZSSR:
     sess = None
 
     def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1.):
-        print('~'*40, '\nZSSR verbose I-G-N-O-R-E-!\n')
+        print('~' * 40, '\nZSSR verbose I-G-N-O-R-E-!\n')
         # Acquire meta parameters configuration from configuration class as a class variable
         self.conf = Config(scale_factor, is_real_img, noise_scale)
         # Read input image
@@ -102,7 +102,6 @@ class ZSSR:
     def run(self):
         # Run gradually on all scale factors (if only one jump then this loop only happens once)
         for self.sf_ind, (sf, self.kernel) in enumerate(zip(self.conf.scale_factors, self.kernels)):
-
             # verbose
             # Relative_sf (used when base change is enabled. this is when input is the output of some previous scale)
             sf = [sf, sf] if np.isscalar(sf) else sf
@@ -130,13 +129,12 @@ class ZSSR:
             self.base_change()
 
         # Return the final post processed output.
+        print('ZSSR verbose ended\n', '~' * 40)
         # noinspection PyUnboundLocalVariable
-        print('ZSSR verbose ended\n', '~'*40)
         return post_processed_output
 
     def build_network(self, meta):
         with self.model.as_default():
-
             # Learning rate tensor
             self.learning_rate_t = tf.placeholder(tf.float32, name='learning_rate')
 
@@ -152,7 +150,7 @@ class ZSSR:
             # Filters
             self.filters_t = [tf.get_variable(shape=meta.filter_shape[ind], name='filter_%d' % ind,
                                               initializer=tf.random_normal_initializer(
-                                                  stddev=np.sqrt(meta.init_variance/np.prod(
+                                                  stddev=np.sqrt(meta.init_variance / np.prod(
                                                       meta.filter_shape[ind][0:3]))))
                               for ind in range(meta.depth)]
 
@@ -179,7 +177,6 @@ class ZSSR:
     def init_sess(self, init_weights=True):
         # Sometimes we only want to initialize some meta-params but keep the weights as they were
         if init_weights:
-
             # These are for GPU consumption, preventing TF to catch all available GPUs
             config = tf.ConfigProto()
             config.gpu_options.allow_growth = True
@@ -288,7 +285,7 @@ class ZSSR:
                                leave_as_is_probability=self.conf.augment_leave_as_is_probability,
                                no_interpolate_probability=self.conf.augment_no_interpolate_probability,
                                min_scale=self.conf.augment_min_scale,
-                               max_scale=([1.0] + self.conf.scale_factors)[len(self.hr_fathers_sources)-1],
+                               max_scale=([1.0] + self.conf.scale_factors)[len(self.hr_fathers_sources) - 1],
                                allow_rotation=self.conf.augment_allow_rotation,
                                scale_diff_sigma=self.conf.augment_scale_diff_sigma,
                                shear_sigma=self.conf.augment_shear_sigma,
@@ -352,6 +349,7 @@ class ZSSR:
 
         # Now we can keep the final result (in grayscale case, colors still need to be added, but we don't care
         # because it is done before saving and for every other purpose we use this result)
+        # noinspection PyUnboundLocalVariable
         self.final_sr = almost_final_sr
 
         # Add colors to result image in case net was activated only on grayscale
@@ -365,7 +363,6 @@ class ZSSR:
         # Change base input image if required (this means current output becomes the new input)
         if abs(self.conf.scale_factors[self.sf_ind] - self.conf.base_change_sfs[self.base_ind]) < 0.001:
             if len(self.conf.base_change_sfs) > self.base_ind:
-
                 # The new input is the current output
                 self.input = self.final_sr
 

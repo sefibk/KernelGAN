@@ -7,15 +7,13 @@ class Generator(nn.Module):
     def __init__(self, conf):
         super(Generator, self).__init__()
         struct = conf.G_structure
-        # First layer - kernel + down sampling
+        # First layer - down sampling
         self.first_layer = nn.Conv2d(in_channels=1, out_channels=conf.G_chan, kernel_size=struct[0], stride=int(1/conf.scale_factor), bias=False)
 
-        # Stacking intermediate layer
-        feature_block = []
+        feature_block = []  # Stacking intermediate layer
         for layer in range(1, len(struct)-1):
             feature_block += [nn.Conv2d(in_channels=conf.G_chan, out_channels=conf.G_chan, kernel_size=struct[layer], bias=False)]
         self.feature_block = nn.Sequential(*feature_block)
-        # Final layer
         self.final_layer = nn.Conv2d(in_channels=conf.G_chan, out_channels=1, kernel_size=struct[-1], bias=False)
 
         # Calculate number of pixels shaved in the forward pass
@@ -23,15 +21,12 @@ class Generator(nn.Module):
         self.forward_shave = int(conf.input_crop_size * conf.scale_factor) - self.output_size
 
     def forward(self, input_tensor):
-
         # swap axis of RGB image for the network to get a "batch" of size = 3 rather the 3 channels
         input_tensor = swap_axis(input_tensor)
         downscaled = self.first_layer(input_tensor)
         features = self.feature_block(downscaled)
         output = self.final_layer(features)
-        noisy_output = output
-
-        return swap_axis(noisy_output)
+        return swap_axis(output)
 
 
 class Discriminator(nn.Module):
@@ -39,7 +34,7 @@ class Discriminator(nn.Module):
     def __init__(self, conf):
         super(Discriminator, self).__init__()
 
-        # First layer - kernel - NO ReLU
+        # First layer - Convolution (with no ReLU)
         self.first_layer = nn.utils.spectral_norm(nn.Conv2d(in_channels=3, out_channels=conf.D_chan, kernel_size=conf.D_kernel_size, bias=True))
         feature_block = []  # Stacking layers with 1x1 kernels
         for _ in range(1, conf.D_n_layers-1):
@@ -57,9 +52,7 @@ class Discriminator(nn.Module):
 
         receptive_extraction = self.first_layer(input_tensor)
         features = self.feature_block(receptive_extraction)
-        output = self.final_layer(features)
-
-        return output
+        return self.final_layer(features)
 
 
 def weights_init_D(m):

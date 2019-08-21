@@ -4,7 +4,7 @@
 Paper: ????https://arxiv.org/abs/1712.06087  ????
 Project page: ???? http://www.wisdom.weizmann.ac.il/~vision/zssr/ (See our results and visual comparison to other methods)????
 
-// **Accepted NuerIPS 2019**
+// **Accepted NeurIPS 2019**
 
 ----------
 \\ ![sketch](/figs/sketch.png)
