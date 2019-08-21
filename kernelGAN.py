@@ -56,7 +56,7 @@ class KernelGAN:
         self.optimizer_G = torch.optim.Adam(self.G.parameters(), lr=conf.g_lr, betas=(conf.beta1, 0.999))
         self.optimizer_D = torch.optim.Adam(self.D.parameters(), lr=conf.d_lr, betas=(conf.beta1, 0.999))
 
-        print('\nRunning KernelGAN on image \"%s\"' % conf.input_image_path)
+        print('~' * 60, '\nTraining KernelGAN on image \"%s\"' % conf.input_image_path)
 
     # noinspection PyUnboundLocalVariable
     def calc_curr_k(self):
@@ -153,6 +153,6 @@ class KernelGAN:
     def finish(self):
         final_kernel = move2cpu(self.curr_k)
         save_final_kernel(final_kernel, self.conf)
-        print('\nCompleted KernelGAN estimation')
+        print('KernelGAN complete')
         run_zssr(final_kernel, self.conf)
-        print('\nFINISHED RUN (see --Results-- folder)')
+        print('\nFINISHED RUN (see --%s-- folder)\n' % self.conf.output_dir_path, '~' * 60)

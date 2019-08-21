@@ -198,6 +198,7 @@ def run_zssr(k, conf):
     if conf.do_ZSSR:
         k_2 = post_process_k(k, n=conf.n_filtering)
         sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x2.mat' % conf.img_name), {'Kernel': k_2})
+        print('-' * 15, '\nRunning ZSSR X%d\n' % (4 if conf.X4 else 2))
         if conf.X4:
             sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x4.mat' % conf.img_name), {'Kernel': analytic_kernel(k_2)})
             sr = ZSSR(conf.input_image_path, scale_factor=[[2, 2], [4, 4]], kernels=[k_2, analytic_kernel(k_2)]).run()
@@ -205,3 +206,4 @@ def run_zssr(k, conf):
             sr = ZSSR(conf.input_image_path, scale_factor=2, kernels=[k_2]).run()
         max_val = 255 if sr.dtype == 'uint8' else 1.
         plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s' % conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
+        print('ZSSR complete\n', '-' * 15)

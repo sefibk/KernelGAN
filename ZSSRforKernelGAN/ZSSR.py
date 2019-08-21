@@ -66,7 +66,6 @@ class ZSSR:
     sess = None
 
     def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1.):
-        print('~' * 40, '\nZSSR verbose I-G-N-O-R-E-!\n')
         # Acquire meta parameters configuration from configuration class as a class variable
         self.conf = Config(scale_factor, is_real_img, noise_scale)
         # Read input image
@@ -102,7 +101,6 @@ class ZSSR:
     def run(self):
         # Run gradually on all scale factors (if only one jump then this loop only happens once)
         for self.sf_ind, (sf, self.kernel) in enumerate(zip(self.conf.scale_factors, self.kernels)):
-            # verbose
             # Relative_sf (used when base change is enabled. this is when input is the output of some previous scale)
             sf = [sf, sf] if np.isscalar(sf) else sf
             self.sf = np.array(sf) / np.array(self.base_sf)
@@ -129,7 +127,6 @@ class ZSSR:
             self.base_change()
 
         # Return the final post processed output.
-        print('ZSSR verbose ended\n', '~' * 40)
         # noinspection PyUnboundLocalVariable
         return post_processed_output
 
@@ -171,8 +168,8 @@ class ZSSR:
 
             # Apply adam optimizer
             self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate_t).minimize(self.loss_t)
-            self.init_op = tf.initialize_all_variables()
-            # self.init_op = tf.global_variables_initializer()
+            # self.init_op = tf.initialize_all_variables()
+            self.init_op = tf.global_variables_initializer()
 
     def init_sess(self, init_weights=True):
         # Sometimes we only want to initialize some meta-params but keep the weights as they were
