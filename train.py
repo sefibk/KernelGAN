@@ -6,12 +6,16 @@ from data import DataGenerator
 from kernelGAN import KernelGAN
 from learner import Learner
 
+# todo: after seeing that centralizing doesn't hurt results - try to crop the edges + git push
+# todo: check that shave_a2b is still right
+# todo: change r73 in configs + X4 skipping in train (r28)
+
 
 def train(conf):
     gan = KernelGAN(conf)
     learner = Learner()
     data = DataGenerator(conf, gan)
-    for iteration in tqdm.tqdm(range(conf.max_iters)):
+    for iteration in tqdm.tqdm(range(conf.max_iters), ncols=60):
         [g_in, d_in] = data.__getitem__(iteration)
         gan.train(g_in, d_in)
         learner.update(iteration, gan)
@@ -22,6 +26,8 @@ def main():
     """The main function - performs kernel estimation (+ ZSSR) for all images in the 'test_images' folder"""
     input_folder = 'test_images'
     for filename in os.listdir(os.path.abspath(input_folder)):
+        if 'X4' not in filename:
+            continue
         conf = Config().parse(map(str, ['--input_image_path', os.path.join(input_folder, filename)] + get_flags(filename)))
         train(conf)
 

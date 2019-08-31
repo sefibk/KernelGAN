@@ -18,7 +18,7 @@ class GANLoss(nn.Module):
         self.label_tensor_fake = Variable(torch.zeros(d_last_layer_shape).cuda(), requires_grad=False)
         self.label_tensor_real = Variable(torch.ones(d_last_layer_shape).cuda(), requires_grad=False)
 
-    def forward(self, d_last_layer, is_d_input_real, grad_map):
+    def forward(self, d_last_layer, is_d_input_real):
         # Determine label map according to whether current input to discriminator is real or fake
         label_tensor = self.label_tensor_real if is_d_input_real else self.label_tensor_fake
         # Finally compute the loss

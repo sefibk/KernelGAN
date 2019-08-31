@@ -70,7 +70,7 @@ class Config:
 
     def set_output_directory(self):
         """Define the output directory name and create the folder"""
-        self.conf.output_dir_path = os.path.join('Results', self.conf.img_name)
+        self.conf.output_dir_path = os.path.join('Results', self.conf.img_name) + '_no_k_crop'
         # In case the folder exists - stack 'l's to the folder name
         while os.path.isdir(self.conf.output_dir_path):
             self.conf.output_dir_path += 'l'
