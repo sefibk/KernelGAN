@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from util import shave_a2b, resize_tensor_w_kernel, create_mask, map2tensor
+from util import shave_a2b, resize_tensor_w_kernel, create_penalty_mask, map2tensor
 
 
 # noinspection PyUnresolvedReferences
@@ -77,7 +77,7 @@ class BoundariesLoss(nn.Module):
     """ Encourages sparsity of the boundaries by penalizing non-zeros far from the center """
     def __init__(self, k_size):
         super(BoundariesLoss, self).__init__()
-        self.mask = map2tensor(create_mask(k_size, 30))
+        self.mask = map2tensor(create_penalty_mask(k_size, 30))
         self.zero_label = Variable(torch.zeros(k_size).cuda(), requires_grad=False)
         self.loss = nn.L1Loss()
 

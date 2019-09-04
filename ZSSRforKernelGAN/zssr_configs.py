@@ -50,6 +50,9 @@ class Config:
             print('\nCONFIGURATION IS FOR REAL IMAGES')
             self.back_projection_iters = [0]  # no B.P
             self.noise_std = 0.0125 * noise_scale   # Add noise to sons
+        # todo: AIM challenge:
+        if True:
+            self.noise_std = 0.0125 * 3   # Add noise to sons
         if type(self.scale_factors[0]) is list:   # for gradual SR
             self.back_projection_iters = [self.back_projection_iters[0], self.back_projection_iters[0]]
         # network meta params that by default are determined (by other params) by other params but can be changed

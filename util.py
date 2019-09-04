@@ -19,19 +19,19 @@ def move2cpu(d):
 
 
 def tensor2im(im_t):
-    """Copy's the tensor to the cpu & converts it to imtype in range [0,255]"""
+    """Copy the tensor to the cpu & convert to range [0,255]"""
     im_np = np.clip(np.round((np.transpose(move2cpu(im_t).squeeze(0), (1, 2, 0)) + 1) / 2.0 * 255.0), 0, 255)
     return im_np.astype(np.uint8)
 
 
 def im2tensor(im_np):
-    """Copy's an image to the gpu & converts range [0,255] --> [0,1] --> [-1,1]"""
+    """Copy the image to the gpu & converts to range [-1,1]"""
     im_np = im_np / 255.0 if im_np.dtype == 'uint8' else im_np
     return torch.FloatTensor(np.transpose(im_np, (2, 0, 1)) * 2.0 - 1.0).unsqueeze(0).cuda()
 
 
 def map2tensor(gray_map):
-    """Moves gray maps to GPU, no normalization is done"""
+    """Move gray maps to GPU, no normalization is done"""
     return torch.FloatTensor(gray_map).unsqueeze(0).unsqueeze(0).cuda()
 
 
@@ -39,7 +39,7 @@ def resize_tensor_w_kernel(im_t, k, sf=None):
     """Convolves a tensor with a given bicubic kernel according to scale factor"""
     # Expand dimensions to fit convolution: [out_channels, in_channels, k_height, k_width]
     k = k.expand(im_t.shape[1], im_t.shape[1], k.shape[0], k.shape[1])
-    # calculate padding
+    # Calculate padding
     padding = (k.shape[-1] - 1) // 2
     return F.conv2d(im_t, k, stride=round(1/sf), padding=padding)
 
@@ -52,18 +52,18 @@ def read_image(path):
 
 
 def rgb2gray(im):
-    """Take a numpy image (gray/color) & change to gray scale"""
+    """Convert and RGB image to gray-scale"""
     return np.dot(im, [0.299, 0.587, 0.114]) if len(im.shape) == 3 else im
 
 
 def swap_axis(im):
-    """Swap axis of a tensor to have a 3 channel image as a 3 batch size image. To fit the generator's input & undo for it's output"""
+    """Swap axis of a tensor from a 3 channel tensor to a batch of 3-single channel and vise-versa"""
     return im.transpose(0, 1) if type(im) == torch.Tensor else np.moveaxis(im, 0, 1)
 
 
 def shave_a2b(a, b):
     """Given a big image or tensor 'a', shave it symmetrically into b's shape"""
-    # if dealing with a tensor should shave the 3rd & 4th dimension, o.w. the 1st and 2nd
+    # If dealing with a tensor should shave the 3rd & 4th dimension, o.w. the 1st and 2nd
     is_tensor = (type(a) == torch.Tensor)
     r = 2 if is_tensor else 0
     c = 3 if is_tensor else 1
@@ -72,17 +72,16 @@ def shave_a2b(a, b):
     #     return a
     # Calculate the shaving of each dimension
     shave_r, shave_c = max(0, a.shape[r] - b.shape[r]), max(0, a.shape[c] - b.shape[c])
-    return a[:, :, shave_r//2:a.shape[r]-shave_r//2 -shave_r % 2, shave_c//2:a.shape[c]-shave_c//2-shave_c % 2] if is_tensor \
+    return a[:, :, shave_r//2:a.shape[r]-shave_r//2 - shave_r % 2, shave_c//2:a.shape[c]-shave_c//2-shave_c % 2] if is_tensor \
         else a[shave_r//2:a.shape[r]-shave_r//2-shave_r % 2, shave_c//2:a.shape[c]-shave_c//2-shave_c % 2]
 
 
 def create_gradient_map(im, window=5, percent=.97):
-    """Given an image, creates a magnitude gradient map, convolves with a rect and clips the values
-    to create a weighted loss map emphasizing edges in the image"""
-    # Calculate gradient map
+    """Create a gradient map of the image blurred with a rect of size window and clips extreme values"""
+    # Calculate gradients
     gx, gy = np.gradient(rgb2gray(im))
-    gmag = np.sqrt(gx ** 2 + gy ** 2)
-    gx, gy = np.abs(gx), np.abs(gy)
+    # Calculate gradient magnitude
+    gmag, gx, gy = np.sqrt(gx ** 2 + gy ** 2), np.abs(gx), np.abs(gy)
     # Pad edges to avoid artifacts in the edge of the image
     gx_pad, gy_pad, gmag = pad_edges(gx, int(window)), pad_edges(gy, int(window)), pad_edges(gmag, int(window))
     lm_x, lm_y, lm_gmag = clip_extreme(gx_pad, percent), clip_extreme(gy_pad, percent), clip_extreme(gmag, percent)
@@ -105,21 +104,15 @@ def create_probability_map(loss_map, crop):
     return prob_vec
 
 
-def gradient_magnitude(im):
-    """Gradient magnitude calculation"""
-    gx, gy = np.gradient(rgb2gray(im))
-    return np.sqrt(gx ** 2 + gy ** 2)
-
-
 def pad_edges(im, edge):
-    """pads an image with zeros"""
+    """Replace image boundaries with 0 without changing the size"""
     zero_padded = np.zeros_like(im)
     zero_padded[edge:-edge, edge:-edge] = im[edge:-edge, edge:-edge]
     return zero_padded
 
 
 def clip_extreme(im, percent):
-    """zeroize the lower 'percent' in the image and equalize the rest"""
+    """Zeroize values below the a threshold and clip all those above"""
     # Sort the image
     im_sorted = np.sort(im.flatten())
     # Choose a pivot index that holds the min value to be clipped
@@ -132,8 +125,18 @@ def clip_extreme(im, percent):
 
 
 def post_process_k(k, n):
-    """Move the kernel to the CPU, eliminate negligible values, and centralize the kernel"""
+    """Move the kernel to the CPU, eliminate negligible values, and centralize k"""
     k = move2cpu(k)
+    # Zeroize negligible values
+    significant_k = zeroize_negligible_val(k, n)
+    # Force centralization on the kernel
+    centralized_k = kernel_shift(significant_k, sf=2)
+    # return shave_a2b(centralized_k, k)
+    return centralized_k
+
+
+def zeroize_negligible_val(k, n):
+    """Zeroize values that are negligible w.r.t to values in k"""
     # Sort K's values in order to find the n-th largest
     k_sorted = np.sort(k.flatten())
     # Define the minimum value as the 0.75 * the n-th largest value
@@ -141,15 +144,11 @@ def post_process_k(k, n):
     # Clip values lower than the minimum value
     filtered_k = np.clip(k - k_n_min, a_min=0, a_max=100)
     # Normalize to sum to 1
-    normalized_k = filtered_k / filtered_k.sum()
-    # Force centralization on the kernel
-    centralized_k = kernel_shift(normalized_k, sf=2)
-    # return shave_a2b(centralized_k, k)
-    return centralized_k
+    return filtered_k / filtered_k.sum()
 
 
-def create_mask(k_size, penalty_scale):
-    """Generate a mask of weights penalizing values close to kernel's boundaries"""
+def create_penalty_mask(k_size, penalty_scale):
+    """Generate a mask of weights penalizing values close to the boundaries"""
     center_size = k_size // 2 + k_size % 2
     mask = create_gaussian(size=k_size, sigma1=k_size, is_tensor=False)
     mask = 1 - mask / np.max(mask)
@@ -233,5 +232,7 @@ def run_zssr(k_2, conf):
             sr = ZSSR(conf.input_image_path, scale_factor=2, kernels=[k_2]).run()
         max_val = 255 if sr.dtype == 'uint8' else 1.
         plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s' % conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
+        # todo: AIM challenge
+        plt.imsave(os.path.join(conf.output_dir_path, '../', 'AIM_3_noise/%s' % conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
         runtime = int(time.time() - start_time)
         print('Completed! runtime=%d:%d\n' % (runtime // 60, runtime % 60) + '~' * 30)
