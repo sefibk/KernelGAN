@@ -9,6 +9,7 @@ class DataGenerator(Dataset):
     The data generator loads an image once, calculates it's gradient map on initialization and then outputs a cropped version
     of that image whenever called.
     """
+
     def __init__(self, conf, gan):
         # Default shapes
         self.g_input_shape = conf.input_crop_size
@@ -39,7 +40,7 @@ class DataGenerator(Dataset):
         size = self.g_input_shape if for_g else self.d_input_shape
         top, left = self.get_top_left(size, for_g, idx)
         crop_im = self.input_image[top:top + size, left:left + size, :]
-        if not for_g:       # Add noise to the image for d
+        if not for_g:  # Add noise to the image for d
             crop_im += np.random.randn(*crop_im.shape) / 255.0
         return im2tensor(crop_im)
 
@@ -56,7 +57,7 @@ class DataGenerator(Dataset):
         loss_map_sml = create_gradient_map(imresize(im=self.input_image, scale_factor=scale_factor, kernel='cubic'))
         # Create corresponding probability maps
         prob_map_big = create_probability_map(loss_map_big, self.d_input_shape)
-        prob_map_sml = create_probability_map(nn_interpolation(loss_map_sml, int(1/scale_factor)), self.g_input_shape)
+        prob_map_sml = create_probability_map(nn_interpolation(loss_map_sml, int(1 / scale_factor)), self.g_input_shape)
         return prob_map_big, prob_map_sml
 
     def shave_edges(self, scale_factor, real_image):
@@ -65,7 +66,7 @@ class DataGenerator(Dataset):
         if not real_image:
             self.input_image = self.input_image[10:-10, 10:-10, :]
         # Crop pixels for the shape to be divisible by the scale factor
-        sf = int(1/scale_factor)
+        sf = int(1 / scale_factor)
         shape = self.input_image.shape
         self.input_image = self.input_image[:-(shape[0] % sf), :, :] if shape[0] % sf > 0 else self.input_image
         self.input_image = self.input_image[:, :-(shape[1] % sf), :] if shape[1] % sf > 0 else self.input_image
@@ -75,5 +76,4 @@ class DataGenerator(Dataset):
         center = self.crop_indices_for_g[idx] if for_g else self.crop_indices_for_d[idx]
         row, col = int(center / self.in_cols), center % self.in_cols
         top, left = min(max(0, row - size // 2), self.in_rows - size), min(max(0, col - size // 2), self.in_cols - size)
-        return top - top % 2, left - left % 2   # Choose even indices (to avoid misalignment with the loss map for_g)
-
+        return top - top % 2, left - left % 2  # Choose even indices (to avoid misalignment with the loss map for_g)

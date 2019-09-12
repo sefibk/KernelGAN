@@ -57,7 +57,7 @@ class Config:
 
     def clean_file_name(self):
         """Retrieves the clean image file_name for saving purposes"""
-        self.conf.img_name = self.conf.input_image_path.split('/')[-1].replace('ZSSR', '')\
+        self.conf.img_name = self.conf.input_image_path.split('/')[-1].replace('ZSSR', '') \
             .replace('real', '').replace('__', '').split('_.')[0].split('.')[0]
 
     def set_gpu_device(self):
@@ -75,4 +75,3 @@ class Config:
         while os.path.isdir(self.conf.output_dir_path):
             self.conf.output_dir_path += 'l'
         os.makedirs(self.conf.output_dir_path)
-

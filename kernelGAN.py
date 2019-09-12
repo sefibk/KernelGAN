@@ -22,7 +22,6 @@ class KernelGAN:
         self.D = networks.Discriminator(conf).cuda()
 
         # Calculate D's input & output shape according to the shaving done by the networks
-        # self.d_input_shape = round(conf.input_crop_size * conf.scale_factor) - self.G.forward_shave
         self.d_input_shape = self.G.output_size
         self.d_output_shape = self.d_input_shape - self.D.forward_shave
 
@@ -99,7 +98,7 @@ class KernelGAN:
         loss_sparse = self.sparse_loss.forward(kernel=self.curr_k)
         # Apply constraints co-efficients
         return self.loss_bicubic * self.lambda_bicubic + loss_sum2one * self.lambda_sum2one + \
-               loss_boundaries * self.lambda_boundaries + loss_centralized * self.lambda_centralized +\
+               loss_boundaries * self.lambda_boundaries + loss_centralized * self.lambda_centralized + \
                loss_sparse * self.lambda_sparse
 
     def train_d(self):

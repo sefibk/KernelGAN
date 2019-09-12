@@ -22,17 +22,16 @@ def main():
     """The main function - performs kernel estimation (+ ZSSR) for all images in the 'test_images' folder"""
     input_folder = 'test_images'
     for filename in os.listdir(os.path.abspath(input_folder)):
-        conf = Config().parse(map(str, ['--input_image_path', os.path.join(input_folder, filename)] + get_flags(filename)))
+        conf = Config().parse(map(str, ['--input_image_path', os.path.join(input_folder, filename)] +
+                                  get_flags(filename)))
         train(conf)
 
 
 def get_flags(filename):
     """According to the input file_name - determines the SF, whether ZSSR is done and real images configuration"""
-    flags = ['--X4'] if 'X4' in filename else []   # Estimates the X4 kernel
-    flags = flags + ['--do_ZSSR'] if 'ZSSR' in filename else flags    # Performs ZSSR
-    flags = flags + ['--real_image'] if 'real' in filename else flags   # Configuration is for real world images
-    # todo: AIM challenge
-    flags = ['--X4', '--do_ZSSR', '--real_image']
+    flags = ['--X4'] if 'X4' in filename else []  # Estimates the X4 kernel
+    flags = flags + ['--do_ZSSR'] if 'ZSSR' in filename else flags  # Performs ZSSR
+    flags = flags + ['--real_image'] if 'real' in filename else flags  # Configuration is for real world images
     return flags
 
 

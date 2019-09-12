@@ -4,7 +4,6 @@ from math import pi
 
 
 def imresize(im, scale_factor=None, output_shape=None, kernel=None, antialiasing=True, kernel_shift_flag=False):
-
     # First standardize values and fill missing arguments (if needed) by deriving scale from output shape or vice versa
     scale_factor, output_shape = fix_scale_and_size(im.shape, output_shape, scale_factor)
 
@@ -87,7 +86,7 @@ def contributions(in_length, out_length, scale, kernel, kernel_width, antialiasi
     kernel_width *= 1.0 / scale if antialiasing else 1.0
 
     # These are the coordinates of the output image
-    out_coordinates = np.arange(1, out_length+1)
+    out_coordinates = np.arange(1, out_length + 1)
 
     # These are the matching positions of the output-coordinates on the input image coordinates.
     # Best explained by example: say we have 4 horizontal pixels for HR and we downscale by SF=2 and get 2 pixels:
@@ -167,7 +166,7 @@ def numeric_kernel(im, kernel, scale_factor, output_shape, kernel_shift_flag):
 
     # Then subsample and return
     return out_im[np.round(np.linspace(0, im.shape[0] - 1 / scale_factor[0], output_shape[0])).astype(int)[:, None],
-                  np.round(np.linspace(0, im.shape[1] - 1 / scale_factor[1], output_shape[1])).astype(int), :]
+           np.round(np.linspace(0, im.shape[1] - 1 / scale_factor[1], output_shape[1])).astype(int), :]
 
 
 def kernel_shift(kernel, sf):
@@ -205,13 +204,13 @@ def cubic(x):
     absx = np.abs(x)
     absx2 = absx ** 2
     absx3 = absx ** 3
-    return ((1.5*absx3 - 2.5*absx2 + 1) * (absx <= 1) +
-            (-0.5*absx3 + 2.5*absx2 - 4*absx + 2) * ((1 < absx) & (absx <= 2)))
+    return ((1.5 * absx3 - 2.5 * absx2 + 1) * (absx <= 1) +
+            (-0.5 * absx3 + 2.5 * absx2 - 4 * absx + 2) * ((1 < absx) & (absx <= 2)))
 
 
 def lanczos2(x):
-    return (((np.sin(pi*x) * np.sin(pi*x/2) + np.finfo(np.float32).eps) /
-             ((pi**2 * x**2 / 2) + np.finfo(np.float32).eps))
+    return (((np.sin(pi * x) * np.sin(pi * x / 2) + np.finfo(np.float32).eps) /
+             ((pi ** 2 * x ** 2 / 2) + np.finfo(np.float32).eps))
             * (abs(x) < 2))
 
 
@@ -220,11 +219,10 @@ def box(x):
 
 
 def lanczos3(x):
-    return (((np.sin(pi*x) * np.sin(pi*x/3) + np.finfo(np.float32).eps) /
-            ((pi**2 * x**2 / 3) + np.finfo(np.float32).eps))
+    return (((np.sin(pi * x) * np.sin(pi * x / 3) + np.finfo(np.float32).eps) /
+             ((pi ** 2 * x ** 2 / 3) + np.finfo(np.float32).eps))
             * (abs(x) < 3))
 
 
 def linear(x):
     return (x + 1) * ((-1 <= x) & (x < 0)) + (1 - x) * ((0 <= x) & (x <= 1))
-

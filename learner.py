@@ -1,4 +1,3 @@
-
 class Learner:
     lambda_update_freq = 200
     bic_loss_to_start_change = 0.4
@@ -11,8 +10,8 @@ class Learner:
 
     def __init__(self):
         self.bic_loss_counter = 0
-        self.similar_to_bicubic = False     # Flag indicating when the bicubic similarity is achieved
-        self.insert_constraints = True      # Flag is switched to false once constraints are added to the loss
+        self.similar_to_bicubic = False  # Flag indicating when the bicubic similarity is achieved
+        self.insert_constraints = True  # Flag is switched to false once constraints are added to the loss
 
     def update(self, iteration, gan):
         if iteration == 0:
@@ -35,9 +34,8 @@ class Learner:
                 self.bic_loss_counter = 0
         # Once similar to bicubic is satisfied, consider inserting other constraints
         elif iteration % self.lambda_update_freq == 0 and gan.lambda_bicubic > self.lambda_bicubic_min:
-            gan.lambda_bicubic = max(gan.lambda_bicubic/self.lambda_bicubic_decay_rate, self.lambda_bicubic_min)
+            gan.lambda_bicubic = max(gan.lambda_bicubic / self.lambda_bicubic_decay_rate, self.lambda_bicubic_min)
             if self.insert_constraints and gan.lambda_bicubic < 5e-3:
                 gan.lambda_centralized = self.lambda_centralized_end
                 gan.lambda_sparse = self.lambda_sparse_end
                 self.insert_constraints = False
-

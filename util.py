@@ -41,7 +41,7 @@ def resize_tensor_w_kernel(im_t, k, sf=None):
     k = k.expand(im_t.shape[1], im_t.shape[1], k.shape[0], k.shape[1])
     # Calculate padding
     padding = (k.shape[-1] - 1) // 2
-    return F.conv2d(im_t, k, stride=round(1/sf), padding=padding)
+    return F.conv2d(im_t, k, stride=round(1 / sf), padding=padding)
 
 
 def read_image(path):
@@ -72,8 +72,8 @@ def shave_a2b(a, b):
     #     return a
     # Calculate the shaving of each dimension
     shave_r, shave_c = max(0, a.shape[r] - b.shape[r]), max(0, a.shape[c] - b.shape[c])
-    return a[:, :, shave_r//2:a.shape[r]-shave_r//2 - shave_r % 2, shave_c//2:a.shape[c]-shave_c//2-shave_c % 2] if is_tensor \
-        else a[shave_r//2:a.shape[r]-shave_r//2-shave_r % 2, shave_c//2:a.shape[c]-shave_c//2-shave_c % 2]
+    return a[:, :, shave_r // 2:a.shape[r] - shave_r // 2 - shave_r % 2, shave_c // 2:a.shape[c] - shave_c // 2 - shave_c % 2] if is_tensor \
+        else a[shave_r // 2:a.shape[r] - shave_r // 2 - shave_r % 2, shave_c // 2:a.shape[c] - shave_c // 2 - shave_c % 2]
 
 
 def create_gradient_map(im, window=5, percent=.97):
@@ -174,11 +174,11 @@ def analytic_kernel(k):
     """Calculate the X4 kernel from the X2 kernel (for proof see appendix in paper)"""
     k_size = k.shape[0]
     # Calculate the big kernels size
-    big_k = np.zeros((3*k_size - 2, 3*k_size - 2))
+    big_k = np.zeros((3 * k_size - 2, 3 * k_size - 2))
     # Loop over the small kernel to fill the big one
     for r in range(k_size):
         for c in range(k_size):
-            big_k[2*r:2*r + k_size, 2*c:2*c + k_size] += k[r, c] * k
+            big_k[2 * r:2 * r + k_size, 2 * c:2 * c + k_size] += k[r, c] * k
     # Crop the edges of the big kernel to ignore very small values and increase run time of SR
     crop = k_size // 2
     cropped_big_k = big_k[crop:-crop, crop:-crop]
@@ -232,7 +232,5 @@ def run_zssr(k_2, conf):
             sr = ZSSR(conf.input_image_path, scale_factor=2, kernels=[k_2]).run()
         max_val = 255 if sr.dtype == 'uint8' else 1.
         plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s' % conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
-        # todo: AIM challenge
-        plt.imsave(os.path.join(conf.output_dir_path, '../', 'AIM_3_noise/%s' % conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
         runtime = int(time.time() - start_time)
         print('Completed! runtime=%d:%d\n' % (runtime // 60, runtime % 60) + '~' * 30)

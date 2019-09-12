@@ -11,7 +11,10 @@ class Config:
     min_learning_rate = 9e-6  # this tells the algorithm when to stop (specify lower than the last learning-rate)
     width = 64
     depth = 8
-    output_flip = False     # changed from True  # geometric self-ensemble (see paper)
+    # network meta params that by default are determined (by other params) by other params but can be changed
+    filter_shape = ([[3, 3, 3, width]] + [[3, 3, width, width]] * (depth - 2) + [[3, 3, width, 3]])
+
+    output_flip = False  # changed from True  # geometric self-ensemble (see paper)
     downscale_method = 'cubic'  # a string ('cubic', 'linear'...), has no meaning if kernel given
     upscale_method = 'cubic'  # this is the base interpolation from which we learn the residual (same options as above)
     downscale_gt_method = 'cubic'  # when ground-truth given and intermediate scales tested, we shrink gt to wanted size
@@ -30,12 +33,12 @@ class Config:
     learning_rate_slope_range = 256
 
     # Data augmentation related params
-    augment_leave_as_is_probability = 1     # changed from 0.05
+    augment_leave_as_is_probability = 1  # changed from 0.05
     augment_no_interpolate_probability = 0  # changed from 0.45
-    augment_min_scale = 0                   # changed from 0.5
-    augment_scale_diff_sigma = 0            # changed from 0.25
-    augment_shear_sigma = 0                 # changed from 0.1
-    augment_allow_rotation = False          # changed from True  # recommended false for non-symmetric kernels
+    augment_min_scale = 0  # changed from 0.5
+    augment_scale_diff_sigma = 0  # changed from 0.25
+    augment_shear_sigma = 0  # changed from 0.1
+    augment_allow_rotation = False  # changed from True  # recommended false for non-symmetric kernels
 
     # params related to test and display
     run_test = True
@@ -47,23 +50,9 @@ class Config:
     def __init__(self, scale_factor, is_real_img, noise_scale):
         self.scale_factors = [[scale_factor, scale_factor]] if type(scale_factor) is int else scale_factor
         if is_real_img:
-            print('\nCONFIGURATION IS FOR REAL IMAGES')
+            print('\nZSSR configuration is for a real image')
             self.back_projection_iters = [0]  # no B.P
-            self.noise_std = 0.0125 * noise_scale   # Add noise to sons
-        # todo: AIM challenge:
-        if True:
-            self.noise_std = 0.0125 * 3   # Add noise to sons
-        if type(self.scale_factors[0]) is list:   # for gradual SR
+            self.noise_std = 0.0125 * noise_scale  # Add noise to sons
+        if type(self.scale_factors[0]) is list:  # for gradual SR
             self.back_projection_iters = [self.back_projection_iters[0], self.back_projection_iters[0]]
-        # network meta params that by default are determined (by other params) by other params but can be changed
-        self.filter_shape = ([[3, 3, 3, self.width]] +
-                             [[3, 3, self.width, self.width]] * (self.depth-2) +
-                             [[3, 3, self.width, 3]])
-
-
-"""
-ZSSR's configuration for real images is:
- back_projection_iters = [0]
- noise_std = 0.0125
-"""
 

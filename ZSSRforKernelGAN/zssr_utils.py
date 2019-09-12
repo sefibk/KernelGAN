@@ -22,7 +22,6 @@ def random_augment(ims,
                    allow_scale_in_no_interp=False,
                    crop_center=None,
                    loss_map_sources=None):
-
     # Determine which kind of augmentation takes place according to probabilities
     random_chooser = np.random.rand()
 
@@ -94,15 +93,15 @@ def random_augment(ims,
     # If center of crop was provided
     if crop_center is not None:
         shift_y, shift_x = crop_center
-        shift_x = shift_x - crop_size/2
-        shift_y = shift_y - crop_size/2
+        shift_x = shift_x - crop_size / 2
+        shift_y = shift_y - crop_size / 2
     # Shift matrix, this actually creates the random crop
     else:
         shift_x = np.random.rand() * np.clip(scale * im.shape[1] - crop_size, 0, 9999)
         shift_y = np.random.rand() * np.clip(scale * im.shape[0] - crop_size, 0, 9999)
 
     # Rotation matrix angle. if affine, set a random angle. if no_interp then theta can only be pi/2 times int.
-    rotation_indicator = 0    # used for finding the correct crop
+    rotation_indicator = 0  # used for finding the correct crop
     if mode == 'affine':
         theta = np.random.rand() * 2 * pi
     elif mode == 'no_interp':
@@ -221,13 +220,13 @@ def rgb_augment(im, rndm=True, shuff_ind=0):
 
 def probability_map(im, crop_size):
     # margin of probabilities that will be zero
-    margin = crop_size//2 - 1
+    margin = crop_size // 2 - 1
     prob_map = np.zeros(im.shape[0:2])
     # Gradient calculation
     gx, gy, _ = np.gradient(im)
     grad_magnitude = np.sum(np.sqrt(gx ** 2 + gy ** 2), axis=2)
     # Convolving with rect to get a map of probabilities per crop
-    rect = np.ones([crop_size-3, crop_size-3])
+    rect = np.ones([crop_size - 3, crop_size - 3])
     grad_magnitude_conv = convolve2d(grad_magnitude, rect, 'same')
     # Copying the values without the margins of the image
     prob_map[margin:-margin, margin:-margin] = grad_magnitude_conv[margin:-margin, margin:-margin]
