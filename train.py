@@ -20,11 +20,32 @@ def train(conf):
 
 def main():
     """The main function - performs kernel estimation (+ ZSSR) for all images in the 'test_images' folder"""
-    input_folder = 'test_images'
-    for filename in os.listdir(os.path.abspath(input_folder)):
-        conf = Config().parse(map(str, ['--input_image_path', os.path.join(input_folder, filename)] +
-                                  get_flags(filename)))
+    import argparse
+
+    prog = argparse.ArgumentParser()
+    prog.add_argument('--input-dir', '-i', type=str, default='test_images', help='path to image input directory.')
+    prog.add_argument('--output-dir', '-o', type=str, default='results', help='path to image output directory.')
+    prog.add_argument('--X4', action='store_true', help='The wanted SR scale factor')
+    prog.add_argument('--SR', action='store_true', help='when activated - ZSSR is not performed')
+    prog.add_argument('--real', action='store_true', help='ZSSRs configuration is for real images')
+    args = prog.parse_args()
+
+    for filename in os.listdir(os.path.abspath(args.input_dir)):
+        conf = Config().parse(create_params(filename, args))
         train(conf)
+    prog.exit(0)
+
+
+def create_params(filename, args):
+    params = ['--input_image_path', os.path.join(args.input_dir, filename),
+              '--output_dir_path', os.path.abspath(args.output_dir)]
+    if args.X4:
+        params.append('--X4')
+    if args.SR:
+        params.append('--do_ZSSR')
+    if args.real:
+        params.append('--real_image')
+    return params
 
 
 def get_flags(filename):
