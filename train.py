@@ -48,13 +48,5 @@ def create_params(filename, args):
     return params
 
 
-def get_flags(filename):
-    """According to the input file_name - determines the SF, whether ZSSR is done and real images configuration"""
-    flags = ['--X4'] if 'X4' in filename else []  # Estimates the X4 kernel
-    flags = flags + ['--do_ZSSR'] if 'ZSSR' in filename else flags  # Performs ZSSR
-    flags = flags + ['--real_image'] if 'real' in filename else flags  # Configuration is for real world images
-    return flags
-
-
 if __name__ == '__main__':
     main()
