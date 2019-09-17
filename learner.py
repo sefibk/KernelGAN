@@ -1,4 +1,5 @@
 class Learner:
+    # Default hyper-parameters
     lambda_update_freq = 200
     bic_loss_to_start_change = 0.4
     lambda_bicubic_decay_rate = 100.

@@ -21,7 +21,7 @@ class Generator(nn.Module):
         self.forward_shave = int(conf.input_crop_size * conf.scale_factor) - self.output_size
 
     def forward(self, input_tensor):
-        # swap axis of RGB image for the network to get a "batch" of size = 3 rather the 3 channels
+        # Swap axis of RGB image for the network to get a "batch" of size = 3 rather the 3 channels
         input_tensor = swap_axis(input_tensor)
         downscaled = self.first_layer(input_tensor)
         features = self.feature_block(downscaled)

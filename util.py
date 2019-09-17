@@ -66,9 +66,6 @@ def shave_a2b(a, b):
     is_tensor = (type(a) == torch.Tensor)
     r = 2 if is_tensor else 0
     c = 3 if is_tensor else 1
-    # b = [b.shape[2], b.shape[3]] if (type(b) == torch.Tensor) else [b.shape[0], b.shape[1]]
-    # if b.shape[r] > a.shape[r] and b.shape[c] > a.shape[c]:
-    #     return a
     # Calculate the shaving of each dimension
     shave_r, shave_c = max(0, a.shape[r] - b.shape[r]), max(0, a.shape[c] - b.shape[c])
     return a[:, :, shave_r // 2:a.shape[r] - shave_r // 2 - shave_r % 2, shave_c // 2:a.shape[c] - shave_c // 2 - shave_c % 2] if is_tensor \
@@ -186,7 +183,7 @@ def analytic_kernel(k):
 
 
 def kernel_shift(kernel, sf):
-    # There are two reasons for shifting the kernel:
+    # There are two reasons for shifting the kernel :
     # 1. Center of mass is not in the center of the kernel which creates ambiguity. There is no possible way to know
     #    the degradation process included shifting so we always assume center of mass is center of the kernel.
     # 2. We further shift kernel center so that top left result pixel corresponds to the middle of the sfXsf first

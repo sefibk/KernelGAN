@@ -21,10 +21,10 @@ To run KernelGAN on all images in <input_image_path>:
 This will produce kernel estimations in the results folder
 
 ### Extra configurations:  
-```--X4``` : estimate the X4 kernel
+```--X4``` : Estimate the X4 kernel
 
-```--SR``` : perform ZSSR using the estimated kernel
+```--SR``` : Perform ZSSR using the estimated kernel
 
-```--real``` : real-image configuration (effects only the ZSSR)
+```--real``` : Real-image configuration (effects only the ZSSR)
 
-```--output-dir``` : output folder for the images (default is results)
+```--output-dir``` : Output folder for the images (default is results)

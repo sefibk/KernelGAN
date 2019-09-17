@@ -2,7 +2,7 @@ import os
 
 
 class Config:
-    # network meta params
+    # Network meta params
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     scale_factors = [[2.0, 2.0]]  # list of pairs (vertical, horizontal) for gradual increments in resolution
     base_change_sfs = []  # list of scales after which the input is changed to be the output (recommended for high sfs)

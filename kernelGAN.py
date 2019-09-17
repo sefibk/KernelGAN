@@ -6,7 +6,7 @@ from util import save_final_kernel, run_zssr, post_process_k
 
 
 class KernelGAN:
-    # Loss co-efficients
+    # Constraint co-efficients
     lambda_sum2one = 0.5
     lambda_bicubic = 5
     lambda_boundaries = 0.5

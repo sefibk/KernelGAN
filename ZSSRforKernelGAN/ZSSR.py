@@ -70,8 +70,10 @@ class ZSSR:
         self.conf = Config(scale_factor, is_real_img, noise_scale)
         # Read input image
         self.input = img.imread(input_img_path)
+        # Discard the alpha channel from images
         if self.input.shape[-1] == 4:
             self.input = img.imread(input_img_path)[:, :, :3]
+        # For gray-scale images - add a 3rd dimension to fit the network
         elif len(self.input.shape) == 2:
             self.input = np.expand_dims(self.input, -1)
         self.input = self.input / 255. if self.input.dtype == 'uint8' else self.input

@@ -22,7 +22,7 @@ class GANLoss(nn.Module):
     def forward(self, d_last_layer, is_d_input_real):
         # Determine label map according to whether current input to discriminator is real or fake
         label_tensor = self.label_tensor_real if is_d_input_real else self.label_tensor_fake
-        # Finally compute the loss
+        # Compute the loss
         return self.loss(d_last_layer, label_tensor)
 
 
@@ -92,7 +92,6 @@ class BoundariesLoss(nn.Module):
 
 class SparsityLoss(nn.Module):
     """ Penalizes small values to encourage sparsity """
-
     def __init__(self):
         super(SparsityLoss, self).__init__()
         self.power = 0.2

@@ -46,7 +46,7 @@ class Config:
         self.parser.add_argument('--real_image', action='store_true', help='ZSSRs configuration is for real images')
 
     def parse(self, args=None):
-        """Create the configuration"""
+        """Parse the configuration"""
         self.conf = self.parser.parse_args(args=args)
         self.set_gpu_device()
         self.clean_file_name()

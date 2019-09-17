@@ -174,7 +174,7 @@ def preprocess_kernels(kernels, conf):
 
 
 def kernel_shift(kernel, sf):
-    # There are two reasons for shifting the kernel:
+    # There are two reasons for shifting the kernel :
     # 1. Center of mass is not in the center of the kernel which creates ambiguity. There is no possible way to know
     #    the degradation process included shifting so we always assume center of mass is center of the kernel.
     # 2. We further shift kernel center so that top left result pixel corresponds to the middle of the sfXsf first

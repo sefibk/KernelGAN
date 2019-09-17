@@ -76,4 +76,5 @@ class DataGenerator(Dataset):
         center = self.crop_indices_for_g[idx] if for_g else self.crop_indices_for_d[idx]
         row, col = int(center / self.in_cols), center % self.in_cols
         top, left = min(max(0, row - size // 2), self.in_rows - size), min(max(0, col - size // 2), self.in_cols - size)
-        return top - top % 2, left - left % 2  # Choose even indices (to avoid misalignment with the loss map for_g)
+        # Choose even indices (to avoid misalignment with the loss map for_g)
+        return top - top % 2, left - left % 2
