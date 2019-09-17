@@ -14,15 +14,15 @@ Project page: http://www.wisdom.weizmann.ac.il/~vision/kernelgan/
 ## Quick usage on your data:  
 To run KernelGAN on all images in <input_image_path>:
 
-**[python train.py --input-dir <input_image_path>]**
+**python train.py --input-dir <input_image_path>**
 
 This will produce kernel estimations in the results folder
 
 ## Extra configurations:  
-**[--X4]** : estimate the X4 kernel
+**--X4** : estimate the X4 kernel
 
-**[--SR]** : perform ZSSR using the estimated kernel
+**--SR** : perform ZSSR using the estimated kernel
 
-**[--real]** : real-image configuration (effects only the ZSSR)
+**--real** : real-image configuration (effects only the ZSSR)
 
-**[--output-dir]** : output folder for the images (default is results)
+**--output-dir** : output folder for the images (default is results)
