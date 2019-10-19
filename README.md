@@ -28,3 +28,9 @@ This will produce kernel estimations in the results folder
 ```--real``` : Real-image configuration (effects only the ZSSR)
 
 ```--output-dir``` : Output folder for the images (default is results)
+
+
+### Data:
+Download the DIV2KRK dataset: [dropbox](https://www.dropbox.com/s/gkx5abm90ij74nc/DIV2KRK_public.zip?dl=0)
+
+Reproduction code for your own Blind-SR dataset: [github](https://github.com/assafshocher/BlindSR_dataset_generator)
