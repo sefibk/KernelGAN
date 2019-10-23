@@ -57,7 +57,7 @@ class SumOfWeightsLoss(nn.Module):
         self.loss = nn.L1Loss()
 
     def forward(self, kernel):
-        return self.loss(1., torch.sum(kernel))
+        return self.loss(torch.FloatTensor(1).to(kernel.device), torch.sum(kernel))
 
 
 class CentralizedLoss(nn.Module):
