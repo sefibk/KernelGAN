@@ -1,6 +1,6 @@
 # Blind Super-Resolution Kernel Estimation using an Internal-GAN
 # "KernelGAN"
-### Sefi Bell-Klgiler, Assaf Shocher, Michal Irani 
+### Sefi Bell-Kligler, Assaf Shocher, Michal Irani 
 *(Official implementation)*
 
 Paper: https://arxiv.org/abs/1909.06581
