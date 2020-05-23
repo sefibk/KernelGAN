@@ -28,6 +28,7 @@ def main():
     prog.add_argument('--X4', action='store_true', help='The wanted SR scale factor')
     prog.add_argument('--SR', action='store_true', help='when activated - ZSSR is not performed')
     prog.add_argument('--real', action='store_true', help='ZSSRs configuration is for real images')
+    prog.add_argument('--noise_scale', type=float, default=1., help='ZSSR uses this to partially de-noise images')
     args = prog.parse_args()
     # Run the KernelGAN sequentially on all images in the input directory
     for filename in os.listdir(os.path.abspath(args.input_dir)):
@@ -38,7 +39,8 @@ def main():
 
 def create_params(filename, args):
     params = ['--input_image_path', os.path.join(args.input_dir, filename),
-              '--output_dir_path', os.path.abspath(args.output_dir)]
+              '--output_dir_path', os.path.abspath(args.output_dir),
+              '--noise_scale', str(args.noise_scale)]
     if args.X4:
         params.append('--X4')
     if args.SR:
