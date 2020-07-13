@@ -39,7 +39,7 @@ class DataGenerator(Dataset):
         """Return a crop according to the pre-determined list of indices. Noise is added to crops for D"""
         size = self.g_input_shape if for_g else self.d_input_shape
         top, left = self.get_top_left(size, for_g, idx)
-        crop_im = self.input_image[top:top + size, left:left + size, :]
+        crop_im = self.input_image[top:top + size, left:left + size, :].copy()
         if not for_g:  # Add noise to the image for d
             crop_im += np.random.randn(*crop_im.shape) / 255.0
         return im2tensor(crop_im)
