@@ -134,20 +134,20 @@ class ZSSR:
     def build_network(self, meta):
         with self.model.as_default():
             # Learning rate tensor
-            self.learning_rate_t = tf.placeholder(tf.float32, name='learning_rate')
+            self.learning_rate_t = tf.compat.v1.placeholder(tf.float32, name='learning_rate')
 
             # Input image
-            self.lr_son_t = tf.placeholder(tf.float32, name='lr_son')
+            self.lr_son_t = tf.compat.v1.placeholder(tf.float32, name='lr_son')
 
             # Ground truth (supervision)
-            self.hr_father_t = tf.placeholder(tf.float32, name='hr_father')
+            self.hr_father_t = tf.compat.v1.placeholder(tf.float32, name='hr_father')
 
             # Loss map
-            self.loss_map_t = tf.placeholder(tf.float32, name='loss_map')
+            self.loss_map_t = tf.compat.v1.placeholder(tf.float32, name='loss_map')
 
             # Filters
-            self.filters_t = [tf.get_variable(shape=meta.filter_shape[ind], name='filter_%d' % ind,
-                                              initializer=tf.random_normal_initializer(
+            self.filters_t = [tf.compat.v1.get_variable(shape=meta.filter_shape[ind], name='filter_%d' % ind,
+                                              initializer=tf.compat.v1.random_normal_initializer(
                                                   stddev=np.sqrt(meta.init_variance / np.prod(
                                                       meta.filter_shape[ind][0:3]))))
                               for ind in range(meta.depth)]
@@ -155,32 +155,32 @@ class ZSSR:
             # Activate filters on layers one by one (this is just building the graph, no calculation is done here)
             self.layers_t = [self.lr_son_t] + [None] * meta.depth
             for l in range(meta.depth - 1):
-                self.layers_t[l + 1] = tf.nn.relu(tf.nn.conv2d(self.layers_t[l], self.filters_t[l], [1, 1, 1, 1], "SAME", name='layer_%d' % (l + 1)))
+                self.layers_t[l + 1] = tf.nn.relu(tf.nn.conv2d(input=self.layers_t[l], filters=self.filters_t[l], strides=[1, 1, 1, 1], padding="SAME", name='layer_%d' % (l + 1)))
 
             # Last conv layer (Separate because no ReLU here)
             l = meta.depth - 1
-            self.layers_t[-1] = tf.nn.conv2d(self.layers_t[l], self.filters_t[l], [1, 1, 1, 1], "SAME", name='layer_%d' % (l + 1))
+            self.layers_t[-1] = tf.nn.conv2d(input=self.layers_t[l], filters=self.filters_t[l], strides=[1, 1, 1, 1], padding="SAME", name='layer_%d' % (l + 1))
 
             # Output image (Add last conv layer result to input, residual learning with global skip connection)
             self.net_output_t = self.layers_t[-1] + self.conf.learn_residual * self.lr_son_t
 
             # Final loss (L1 loss between label and output layer)
-            self.loss_t = tf.reduce_mean(tf.reshape(tf.abs(self.net_output_t - self.hr_father_t) * self.loss_map_t, [-1]))
+            self.loss_t = tf.reduce_mean(input_tensor=tf.reshape(tf.abs(self.net_output_t - self.hr_father_t) * self.loss_map_t, [-1]))
 
             # Apply adam optimizer
-            self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate_t).minimize(self.loss_t)
+            self.train_op = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate_t).minimize(self.loss_t)
             # self.init_op = tf.initialize_all_variables()
-            self.init_op = tf.global_variables_initializer()
+            self.init_op = tf.compat.v1.global_variables_initializer()
 
     def init_sess(self, init_weights=True):
         # Sometimes we only want to initialize some meta-params but keep the weights as they were
         if init_weights:
             # These are for GPU consumption, preventing TF to catch all available GPUs
-            config = tf.ConfigProto()
+            config = tf.compat.v1.ConfigProto()
             config.gpu_options.allow_growth = True
 
             # Initialize computational graph session
-            self.sess = tf.Session(graph=self.model, config=config)
+            self.sess = tf.compat.v1.Session(graph=self.model, config=config)
 
             # Initialize weights
             self.sess.run(self.init_op)
