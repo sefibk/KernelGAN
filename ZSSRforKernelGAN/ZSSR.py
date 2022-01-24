@@ -3,6 +3,7 @@ from ZSSRforKernelGAN.zssr_configs import Config
 from ZSSRforKernelGAN.zssr_utils import *
 import numpy as np
 import tensorflow as tf
+import tqdm
 
 class ZSSR:
     # Basic current state variables initialization / declaration
@@ -65,6 +66,8 @@ class ZSSR:
     sess = None
 
     def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1.):
+        # Save input image path
+        self.input_img_path = input_img_path
         # Acquire meta parameters configuration from configuration class as a class variable
         self.conf = Config(scale_factor, is_real_img, noise_scale)
         # Read input image
@@ -101,6 +104,7 @@ class ZSSR:
 
     def run(self):
         # Run gradually on all scale factors (if only one jump then this loop only happens once)
+        print('*' * 60 + '\nSTARTED ZSSR on: \"%s\"...' % self.input_img_path)
         for self.sf_ind, (sf, self.kernel) in enumerate(zip(self.conf.scale_factors, self.kernels)):
             # Relative_sf (used when base change is enabled. this is when input is the output of some previous scale)
             sf = [sf, sf] if np.isscalar(sf) else sf
@@ -271,7 +275,7 @@ class ZSSR:
 
     def train(self):
         # main training loop
-        for self.iter in range(self.conf.max_iters):
+        for self.iter in tqdm.tqdm(range(self.conf.max_iters), ncols=60):
             # Use augmentation from original input image to create current father.
             # If other scale factors were applied before, their result is also used (hr_fathers_in)
             # crop_center = choose_center_of_crop(self.prob_map) if self.conf.choose_varying_crop else None
