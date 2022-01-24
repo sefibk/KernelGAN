@@ -26,12 +26,14 @@ def tensor2im(im_t):
 def im2tensor(im_np):
     """Copy the image to the gpu & converts to range [-1,1]"""
     im_np = im_np / 255.0 if im_np.dtype == 'uint8' else im_np
-    return torch.FloatTensor(np.transpose(im_np, (2, 0, 1)) * 2.0 - 1.0).unsqueeze(0).cuda()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    return torch.FloatTensor(np.transpose(im_np, (2, 0, 1)) * 2.0 - 1.0).unsqueeze(0).to(device)
 
 
 def map2tensor(gray_map):
     """Move gray maps to GPU, no normalization is done"""
-    return torch.FloatTensor(gray_map).unsqueeze(0).unsqueeze(0).cuda()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    return torch.FloatTensor(gray_map).unsqueeze(0).unsqueeze(0).to(device)
 
 
 def resize_tensor_w_kernel(im_t, k, sf=None):
@@ -157,7 +159,8 @@ def create_gaussian(size, sigma1, sigma2=-1, is_tensor=False):
     """Return a Gaussian"""
     func1 = [np.exp(-z ** 2 / (2 * sigma1 ** 2)) / np.sqrt(2 * np.pi * sigma1 ** 2) for z in range(-size // 2 + 1, size // 2 + 1)]
     func2 = func1 if sigma2 == -1 else [np.exp(-z ** 2 / (2 * sigma2 ** 2)) / np.sqrt(2 * np.pi * sigma2 ** 2) for z in range(-size // 2 + 1, size // 2 + 1)]
-    return torch.FloatTensor(np.outer(func1, func2)).cuda() if is_tensor else np.outer(func1, func2)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    return torch.FloatTensor(np.outer(func1, func2)).to(device) if is_tensor else np.outer(func1, func2)
 
 
 def nn_interpolation(im, sf):

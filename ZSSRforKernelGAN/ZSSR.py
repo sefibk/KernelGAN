@@ -3,7 +3,7 @@ from ZSSRforKernelGAN.zssr_configs import Config
 from ZSSRforKernelGAN.zssr_utils import *
 import numpy as np
 import tensorflow as tf
-
+tf.disable_v2_behavior()
 
 class ZSSR:
     # Basic current state variables initialization / declaration

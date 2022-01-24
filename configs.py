@@ -62,11 +62,12 @@ class Config:
 
     def set_gpu_device(self):
         """Sets the GPU device if one is given"""
-        if os.environ.get('CUDA_VISIBLE_DEVICES', '') == '':
-            os.environ['CUDA_VISIBLE_DEVICES'] = str(self.conf.gpu_id)
-            torch.cuda.set_device(0)
-        else:
-            torch.cuda.set_device(self.conf.gpu_id)
+        if torch.cuda.is_available():
+            if os.environ.get('CUDA_VISIBLE_DEVICES', '') == '':
+                os.environ['CUDA_VISIBLE_DEVICES'] = str(self.conf.gpu_id)
+                torch.cuda.set_device(0)
+            else:
+                torch.cuda.set_device(self.conf.gpu_id)
 
     def set_output_directory(self):
         """Define the output directory name and create the folder"""

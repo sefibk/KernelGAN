@@ -17,28 +17,30 @@ class KernelGAN:
         # Acquire configuration
         self.conf = conf
 
+        # Check if cuda is available
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # Define the GAN
-        self.G = networks.Generator(conf).cuda()
-        self.D = networks.Discriminator(conf).cuda()
+        self.G = networks.Generator(conf).to(self.device)
+        self.D = networks.Discriminator(conf).to(self.device)
 
         # Calculate D's input & output shape according to the shaving done by the networks
         self.d_input_shape = self.G.output_size
         self.d_output_shape = self.d_input_shape - self.D.forward_shave
 
         # Input tensors
-        self.g_input = torch.FloatTensor(1, 3, conf.input_crop_size, conf.input_crop_size).cuda()
-        self.d_input = torch.FloatTensor(1, 3, self.d_input_shape, self.d_input_shape).cuda()
+        self.g_input = torch.FloatTensor(1, 3, conf.input_crop_size, conf.input_crop_size).to(self.device)
+        self.d_input = torch.FloatTensor(1, 3, self.d_input_shape, self.d_input_shape).to(self.device)
 
         # The kernel G is imitating
-        self.curr_k = torch.FloatTensor(conf.G_kernel_size, conf.G_kernel_size).cuda()
+        self.curr_k = torch.FloatTensor(conf.G_kernel_size, conf.G_kernel_size).to(self.device)
 
         # Losses
-        self.GAN_loss_layer = loss.GANLoss(d_last_layer_size=self.d_output_shape).cuda()
-        self.bicubic_loss = loss.DownScaleLoss(scale_factor=conf.scale_factor).cuda()
-        self.sum2one_loss = loss.SumOfWeightsLoss().cuda()
-        self.boundaries_loss = loss.BoundariesLoss(k_size=conf.G_kernel_size).cuda()
-        self.centralized_loss = loss.CentralizedLoss(k_size=conf.G_kernel_size, scale_factor=conf.scale_factor).cuda()
-        self.sparse_loss = loss.SparsityLoss().cuda()
+        self.GAN_loss_layer = loss.GANLoss(d_last_layer_size=self.d_output_shape).to(self.device)
+        self.bicubic_loss = loss.DownScaleLoss(scale_factor=conf.scale_factor).to(self.device)
+        self.sum2one_loss = loss.SumOfWeightsLoss().to(self.device)
+        self.boundaries_loss = loss.BoundariesLoss(k_size=conf.G_kernel_size).to(self.device)
+        self.centralized_loss = loss.CentralizedLoss(k_size=conf.G_kernel_size, scale_factor=conf.scale_factor).to(self.device)
+        self.sparse_loss = loss.SparsityLoss().to(self.device)
         self.loss_bicubic = 0
 
         # Define loss function
@@ -57,7 +59,7 @@ class KernelGAN:
     # noinspection PyUnboundLocalVariable
     def calc_curr_k(self):
         """given a generator network, the function calculates the kernel it is imitating"""
-        delta = torch.Tensor([1.]).unsqueeze(0).unsqueeze(-1).unsqueeze(-1).cuda()
+        delta = torch.Tensor([1.]).unsqueeze(0).unsqueeze(-1).unsqueeze(-1).to(self.device)
         for ind, w in enumerate(self.G.parameters()):
             curr_k = F.conv2d(delta, w, padding=self.conf.G_kernel_size - 1) if ind == 0 else F.conv2d(curr_k, w)
         self.curr_k = curr_k.squeeze().flip([0, 1])
