@@ -1,9 +1,8 @@
 import matplotlib.image as img
 from ZSSRforKernelGAN.zssr_configs import Config
 from ZSSRforKernelGAN.zssr_utils import *
-from ZSSRforKernelGAN.ZSSR_network import *
 import numpy as np
-import torch
+import tensorflow as tf
 import tqdm
 
 class ZSSR:
@@ -82,17 +81,15 @@ class ZSSR:
         self.input = self.input / 255. if self.input.dtype == 'uint8' else self.input
         self.gt = None
         # Shift kernel to avoid misalignment
-        self.kernels = []
-        self.set_kernels(kernels)
+        self.kernels = [kernel_shift(kernel, sf) for kernel, sf in zip(kernels, self.conf.scale_factors)] if kernels is not None else [self.conf.downscale_method] * len(self.conf.scale_factors)
 
-        # Check if cuda is available
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # Prepare TF default computational graph
+        self.model = tf.Graph()
+
         # Build network computational graph
-        # self.build_network(self.conf) NOT ALL IS IMPLEMENTED YET
-        self.network = ZSSRNetwork(self.conf).to(self.device)
+        self.build_network(self.conf)
 
         # Initialize network weights and meta parameters
-        self.weights_initiator = WeightsInitZSSR(self.conf)
         self.init_sess(init_weights=True)
 
         # The first hr father source is the input (source goes through augmentation to become a father)
@@ -102,20 +99,8 @@ class ZSSR:
         # Create a loss map reflecting the weights per pixel of the image
         self.loss_map = create_loss_map(im=self.input) if self.conf.grad_based_loss_map else np.ones_like(self.input)
 
-        # define loss function
-        self.criterion = WeightedL1Loss()
-
         # loss maps that correspond to the father sources array
         self.loss_map_sources = [self.loss_map]
-
-        # Optimizers
-        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=self.learning_rate, betas=(0.9, 0.999))
-
-    def set_kernels(self, kernels):
-        if kernels is not None:
-            self.kernels = [kernel_shift(kernel, sf) for kernel, sf in zip(kernels, self.conf.scale_factors)]
-        else:
-            self.kernels = [self.conf.downscale_method] * len(self.conf.scale_factors)
 
     def run(self):
         # Run gradually on all scale factors (if only one jump then this loop only happens once)
@@ -140,10 +125,7 @@ class ZSSR:
             self.hr_fathers_sources.append(post_processed_output)
 
             # append a corresponding map loss
-            if self.conf.grad_based_loss_map:
-                self.loss_map_sources.append(create_loss_map(im=post_processed_output))
-            else:
-                self.loss_map_sources.append(np.ones_like(post_processed_output))
+            self.loss_map_sources.append(create_loss_map(im=post_processed_output)) if self.conf.grad_based_loss_map else self.loss_map_sources.append(np.ones_like(post_processed_output))
 
             # In some cases, the current output becomes the new input. If indicated and if this is the right scale to
             # become the new base input. all of these conditions are checked inside the function.
@@ -153,9 +135,60 @@ class ZSSR:
         # noinspection PyUnboundLocalVariable
         return post_processed_output
 
+    def build_network(self, meta):
+        with self.model.as_default():
+            # Learning rate tensor
+            self.learning_rate_t = tf.compat.v1.placeholder(tf.float32, name='learning_rate')
+
+            # Input image
+            self.lr_son_t = tf.compat.v1.placeholder(tf.float32, name='lr_son')
+
+            # Ground truth (supervision)
+            self.hr_father_t = tf.compat.v1.placeholder(tf.float32, name='hr_father')
+
+            # Loss map
+            self.loss_map_t = tf.compat.v1.placeholder(tf.float32, name='loss_map')
+
+            # Filters
+            self.filters_t = [tf.compat.v1.get_variable(shape=meta.filter_shape[ind], name='filter_%d' % ind,
+                                              initializer=tf.compat.v1.random_normal_initializer(
+                                                  stddev=np.sqrt(meta.init_variance / np.prod(
+                                                      meta.filter_shape[ind][0:3]))))
+                              for ind in range(meta.depth)]
+
+            # Activate filters on layers one by one (this is just building the graph, no calculation is done here)
+            self.layers_t = [self.lr_son_t] + [None] * meta.depth
+            for l in range(meta.depth - 1):
+                self.layers_t[l + 1] = tf.nn.relu(tf.nn.conv2d(input=self.layers_t[l], filters=self.filters_t[l], strides=[1, 1, 1, 1], padding="SAME", name='layer_%d' % (l + 1)))
+
+            # Last conv layer (Separate because no ReLU here)
+            l = meta.depth - 1
+            self.layers_t[-1] = tf.nn.conv2d(input=self.layers_t[l], filters=self.filters_t[l], strides=[1, 1, 1, 1], padding="SAME", name='layer_%d' % (l + 1))
+
+            # Output image (Add last conv layer result to input, residual learning with global skip connection)
+            self.net_output_t = self.layers_t[-1] + self.conf.learn_residual * self.lr_son_t
+
+            # Final loss (L1 loss between label and output layer)
+            self.loss_t = tf.reduce_mean(input_tensor=tf.reshape(tf.abs(self.net_output_t - self.hr_father_t) * self.loss_map_t, [-1]))
+
+            # Apply adam optimizer
+            self.train_op = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate_t).minimize(self.loss_t)
+            # self.init_op = tf.initialize_all_variables()
+            self.init_op = tf.compat.v1.global_variables_initializer()
+
     def init_sess(self, init_weights=True):
+        # Sometimes we only want to initialize some meta-params but keep the weights as they were
         if init_weights:
-            self.network.apply(self.weights_initiator)
+            # These are for GPU consumption, preventing TF to catch all available GPUs
+            config = tf.compat.v1.ConfigProto()
+            config.gpu_options.allow_growth = True
+
+            # Initialize computational graph session
+            self.sess = tf.compat.v1.Session(graph=self.model, config=config)
+
+            # Initialize weights
+            self.sess.run(self.init_op)
+
         # Initialize all counters etc
         self.loss = [None] * self.conf.max_iters
         self.mse, self.mse_rec, self.interp_mse, self.interp_rec_mse, self.mse_steps = [], [], [], [], []
@@ -163,18 +196,32 @@ class ZSSR:
         self.learning_rate = self.conf.learning_rate
         self.learning_rate_change_iter_nums = [0]
 
+    def forward_backward_pass(self, lr_son, hr_father, cropped_loss_map):
+        # First gate for the lr-son into the network is interpolation to the size of the father
+        # Note: we specify both output_size and scale_factor. best explained by example: say father size is 9 and sf=2,
+        # small_son size is 4. if we upscale by sf=2 we get wrong size, if we upscale to size 9 we get wrong sf.
+        # The current imresize implementation supports specifying both.
+        interpolated_lr_son = imresize(lr_son, self.sf, hr_father.shape, self.conf.upscale_method)
+        # Create feed dict
+        feed_dict = {'learning_rate:0': self.learning_rate,
+                     'lr_son:0': np.expand_dims(interpolated_lr_son, 0),
+                     'hr_father:0': np.expand_dims(hr_father, 0),
+                     'loss_map:0': np.expand_dims(cropped_loss_map, 0)}
+
+        # Run network
+        _, self.loss[self.iter], train_output = self.sess.run([self.train_op, self.loss_t, self.net_output_t],
+                                                              feed_dict)
+        return np.clip(np.squeeze(train_output), 0, 1)
+
     def forward_pass(self, lr_son, hr_father_shape=None):
-        # Run net on the input to get the output super-resolution (almost final result, only post-processing needed)
-        output_img = self.network.forward(lr_son, self.sf, hr_father_shape)
-        # Reduce batch dim
-        output_img = torch.squeeze(output_img)
-        # Channels to last dim
-        output_img = torch.permute(output_img, dims=(1, 2, 0))
-        # Clip output between 0,1
-        output_img = torch.clamp(output_img, min=0, max=1)
-        # Convert torch to numpy
-        output_img = output_img.detach().numpy()
-        return output_img
+        # First gate for the lr-son into the network is interpolation to the size of the father
+        interpolated_lr_son = imresize(lr_son, self.sf, hr_father_shape, self.conf.upscale_method)
+
+        # Create feed dict
+        feed_dict = {'lr_son:0': np.expand_dims(interpolated_lr_son, 0)}
+
+        # Run network
+        return np.clip(np.squeeze(self.sess.run([self.net_output_t], feed_dict)), 0, 1)
 
     def learning_rate_policy(self):
         # fit linear curve and check slope to determine whether to do nothing, reduce learning rate or finish
@@ -196,13 +243,12 @@ class ZSSR:
 
                 # Keep track of learning rate changes for plotting purposes
                 self.learning_rate_change_iter_nums.append(self.iter)
-                return True
-        return False
 
     def quick_test(self):
         # There are four evaluations needed to be calculated:
 
         # 1. True MSE (only if ground-truth was given), note: this error is before post-processing.
+        # Run net on the input to get the output super-resolution (almost final result, only post-processing needed)
         self.sr = self.forward_pass(self.input)
         self.mse = (self.mse + [np.mean(np.ndarray.flatten(np.square(self.gt_per_sf - self.sr)))]
                     if self.gt_per_sf is not None else None)
@@ -253,46 +299,14 @@ class ZSSR:
             # Get lr-son from hr-father
             self.lr_son = self.father_to_son(self.hr_father)
             # run network forward and back propagation, one iteration (This is the heart of the training)
-            # Zeroize gradients
-            self.optimizer.zero_grad()
-            # ZSSR forward pass
-            pred = self.network.forward(self.lr_son, self.sf)
-            # Convert target to torch
-            hr_father = torch.tensor(self.hr_father).float()
-            cropped_loss_map = torch.tensor(self.cropped_loss_map, requires_grad=False).float()
-            # Channels to first dim
-            hr_father = torch.permute(hr_father, dims=(2, 0, 1))
-            cropped_loss_map = torch.permute(cropped_loss_map, dims=(2, 0, 1))
-            # Add batch dimension
-            hr_father = torch.unsqueeze(hr_father, dim=0)
-            cropped_loss_map = torch.unsqueeze(cropped_loss_map, dim=0)
-            # Final loss (Weighted (cropped_loss_map) L1 loss between label and output layer)
-            loss = self.criterion(pred, hr_father, cropped_loss_map)
-            # Initiate backprop
-            loss.backward()
-            self.optimizer.step()
-
-            """
-            # Reduce batch dim
-            output_img = torch.squeeze(pred)
-            # channels to last dim
-            output_img = torch.permute(output_img, dims=(1, 2, 0))
-            # Clip output between 0,1
-            output_img = torch.clamp(output_img, min=0, max=1)
-            # Convert torch to numpy
-            output_img = output_img.detach().numpy()
-            # need to check why this output is needed
-            self.train_output = output_img
-            """
+            self.train_output = self.forward_backward_pass(self.lr_son, self.hr_father, self.cropped_loss_map)
 
             # Test network
             if self.conf.run_test and (not self.iter % self.conf.run_test_every):
                 self.quick_test()
 
             # Consider changing learning rate or stop according to iteration number and losses slope
-            if self.learning_rate_policy():
-                for param_group in self.optimizer.param_groups:
-                    param_group['lr'] = self.learning_rate
+            self.learning_rate_policy()
 
             # stop when minimum learning rate was passed
             if self.learning_rate < self.conf.min_learning_rate:
