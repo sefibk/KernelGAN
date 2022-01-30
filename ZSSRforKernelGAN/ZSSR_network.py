@@ -9,6 +9,8 @@ class ZSSRNetwork(nn.Module):
 
     def __init__(self, conf):
         super(ZSSRNetwork, self).__init__()
+        # Check if cuda is available
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # Network depth and conv2d parameters
         self.conf = conf
         # need to check if can be added self.sf
@@ -35,7 +37,7 @@ class ZSSRNetwork(nn.Module):
         # The current imresize implementation supports specifying both.
         interpolated_lr_son = imresize(lr_son, sf, hr_father_shape, self.conf.upscale_method)
         # Convert numpy to torch
-        interpolated_lr_son = torch.tensor(interpolated_lr_son).float()
+        interpolated_lr_son = torch.tensor(interpolated_lr_son).float().to(self.device)
         # channel to first dim
         interpolated_lr_son = torch.permute(interpolated_lr_son, dims=(2, 0, 1))
         # Add the batch dimension

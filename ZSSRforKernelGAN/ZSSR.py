@@ -1,10 +1,10 @@
+import math
+import torch
+import tqdm
 import matplotlib.image as img
 from ZSSRforKernelGAN.zssr_configs import Config
 from ZSSRforKernelGAN.zssr_utils import *
 from ZSSRforKernelGAN.ZSSR_network import *
-import numpy as np
-import torch
-import tqdm
 
 class ZSSR:
     # Basic current state variables initialization / declaration
@@ -173,7 +173,7 @@ class ZSSR:
         # Clip output between 0,1
         output_img = torch.clamp(output_img, min=0, max=1)
         # Convert torch to numpy
-        output_img = output_img.detach().numpy()
+        output_img = output_img.detach().cpu().numpy()
         return output_img
 
     def learning_rate_policy(self):
@@ -188,7 +188,7 @@ class ZSSR:
                                                    1, cov=True)
 
             # We take the the standard deviation as a measure
-            std = np.sqrt(var)
+            std = math.sqrt(var)
 
             # Determine learning rate maintaining or reduction by the ration between slope and noise
             if -self.conf.learning_rate_change_ratio * slope < std:
@@ -258,8 +258,8 @@ class ZSSR:
             # ZSSR forward pass
             pred = self.network.forward(self.lr_son, self.sf)
             # Convert target to torch
-            hr_father = torch.tensor(self.hr_father).float()
-            cropped_loss_map = torch.tensor(self.cropped_loss_map, requires_grad=False).float()
+            hr_father = torch.tensor(self.hr_father).float().to(self.device)
+            cropped_loss_map = torch.tensor(self.cropped_loss_map, requires_grad=False).float().to(self.device)
             # Channels to first dim
             hr_father = torch.permute(hr_father, dims=(2, 0, 1))
             cropped_loss_map = torch.permute(cropped_loss_map, dims=(2, 0, 1))
