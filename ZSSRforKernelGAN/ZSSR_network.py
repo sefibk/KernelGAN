@@ -1,4 +1,5 @@
-import numpy as np
+import math
+
 from imresize import imresize
 from torch import nn
 import torch
@@ -59,7 +60,7 @@ class WeightsInitZSSR:
             in_channels = layer.in_channels
             kernel_height, kernel_width = layer.kernel_size
             nn.init.normal_(layer.weight, mean=0.0,
-                            std=np.sqrt(self.conf.init_variance / np.prod([in_channels, kernel_height, kernel_width])))
+                            std = math.sqrt(self.conf.init_variance / (in_channels*kernel_height*kernel_width)))
 
 
 class WeightedL1Loss(nn.Module):
