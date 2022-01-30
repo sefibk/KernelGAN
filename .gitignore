@@ -126,3 +126,7 @@ dmypy.json
 # IDE
 .idea/
 .vscode/
+/results/baboonll/baboon_kernel_x2.mat
+/results/baboonlll/baboon_kernel_x2.mat
+/results/baboonllll/baboon_kernel_x2.mat
+/results/baboonlllll/baboon_kernel_x2.mat
