@@ -47,8 +47,9 @@ class Config:
     allow_scale_in_no_interp = False
     grad_based_loss_map = True  # In the case a loss should be calculated w.r.t gradient map
 
-    def __init__(self, scale_factor, is_real_img, noise_scale):
+    def __init__(self, scale_factor, is_real_img, noise_scale, disc_loss=False):
         self.scale_factors = [[scale_factor, scale_factor]] if type(scale_factor) is int else scale_factor
+        self.disc_loss = disc_loss
         if is_real_img:
             print('\nZSSR configuration is for a real image')
             self.back_projection_iters = [0]  # no B.P

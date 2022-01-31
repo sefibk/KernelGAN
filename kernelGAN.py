@@ -28,7 +28,7 @@ class KernelGAN:
         self.D = networks.Discriminator(conf).to(self.device)
 
         # Initiate ZSSR without kernel, kernel will be added once it computed
-        self.ZSSR = ZSSR(conf.input_image_path, scale_factor=2, kernels=None, is_real_img=conf.real_image, noise_scale=conf.noise_scale)
+        self.ZSSR = ZSSR(conf.input_image_path, scale_factor=2, kernels=None, is_real_img=conf.real_image, noise_scale=conf.noise_scale, disc_loss = self.conf.DL)
 
         # Calculate D's input & output shape according to the shaving done by the networks
         self.d_input_shape = self.G.output_size
@@ -139,7 +139,7 @@ class KernelGAN:
     def run_zssr(self, final_kernel):
         """Performs ZSSR with estimated kernel for wanted scale factor"""
         start_time = time.time()
-        print('~' * 30 + '\nRunning ZSSR X%d...' % 2)
+        print('~' * 30 + '\nRunning ZSSR X%d...' % (4 if self.conf.X4 else 2))
         self.ZSSR.set_kernels([final_kernel])
         self.ZSSR.set_disc_loss(self.D, self.criterionGAN)
         sr = self.ZSSR.run()
