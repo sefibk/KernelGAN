@@ -139,8 +139,9 @@ class KernelGAN:
     def run_zssr(self, final_kernel):
         """Performs ZSSR with estimated kernel for wanted scale factor"""
         start_time = time.time()
-        print('~' * 30 + '\nRunning ZSSR X%d...' % (4 if self.conf.X4 else 2))
-        self.ZSSR.set_kernels([final_kernel])
+        print('~' * 30 + '\nRunning ZSSR X%d ' % (4 if self.conf.X4 else 2) + f"with{'' if self.conf.use_kernel else 'out'} kernel and with{'' if self.conf.DL else 'out'} discriminator loss...")
+        if self.conf.use_kernel:
+            self.ZSSR.set_kernels([final_kernel])
         self.ZSSR.set_disc_loss(self.D, self.criterionGAN)
         sr = self.ZSSR.run()
         max_val = 255 if sr.dtype == 'uint8' else 1.

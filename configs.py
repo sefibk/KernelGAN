@@ -45,6 +45,7 @@ class Config:
         self.parser.add_argument('--noise_scale', type=float, default=1., help='ZSSR uses this to partially de-noise images')
         self.parser.add_argument('--real_image', action='store_true', help='ZSSRs configuration is for real images')
         self.parser.add_argument('--DL', action='store_true', help='When activated - ZSSR will use an additional discriminator loss.')
+        self.parser.add_argument('--use_kernel', action='store_true', help='When activated - ZSSR will use the kernel of Kergan.')
 
     def parse(self, args=None):
         """Parse the configuration"""
