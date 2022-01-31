@@ -5,7 +5,8 @@ from configs import Config
 from data import DataGenerator
 from kernelGAN import KernelGAN
 from learner import Learner
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def train(conf):
     gan = KernelGAN(conf)
@@ -26,6 +27,8 @@ def main():
     prog.add_argument('--input-dir', '-i', type=str, default='test_images', help='path to image input directory.')
     prog.add_argument('--output-dir', '-o', type=str, default='results', help='path to image output directory.')
     prog.add_argument('--X4', action='store_true', help='The wanted SR scale factor')
+    prog.add_argument('--DL', action='store_true', help='When activated - ZSSR will use an additional discriminator loss.')
+    prog.add_argument('--UK', action='store_true', help='When activated - ZSSR will use the kernel of Kergan.')
     prog.add_argument('--SR', action='store_true', help='when activated - ZSSR is not performed')
     prog.add_argument('--real', action='store_true', help='ZSSRs configuration is for real images')
     prog.add_argument('--noise_scale', type=float, default=1., help='ZSSR uses this to partially de-noise images')
@@ -43,6 +46,10 @@ def create_params(filename, args):
               '--noise_scale', str(args.noise_scale)]
     if args.X4:
         params.append('--X4')
+    if args.DL:
+        params.append('--DL')
+    if args.UK:
+        params.append('--use_kernel')
     if args.SR:
         params.append('--do_ZSSR')
     if args.real:

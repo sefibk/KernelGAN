@@ -44,6 +44,8 @@ class Config:
         self.parser.add_argument('--do_ZSSR', action='store_true', help='when activated - ZSSR is not performed')
         self.parser.add_argument('--noise_scale', type=float, default=1., help='ZSSR uses this to partially de-noise images')
         self.parser.add_argument('--real_image', action='store_true', help='ZSSRs configuration is for real images')
+        self.parser.add_argument('--DL', action='store_true', help='When activated - ZSSR will use an additional discriminator loss.')
+        self.parser.add_argument('--use_kernel', action='store_true', help='When activated - ZSSR will use the kernel of Kergan.')
 
     def parse(self, args=None):
         """Parse the configuration"""
@@ -72,7 +74,11 @@ class Config:
     def set_output_directory(self):
         """Define the output directory name and create the folder"""
         self.conf.output_dir_path = os.path.join(self.conf.output_dir_path, self.conf.img_name)
+        count = 1
+        suffix = ""
         # In case the folder exists - stack 'l's to the folder name
-        while os.path.isdir(self.conf.output_dir_path):
-            self.conf.output_dir_path += 'l'
+        while os.path.isdir(self.conf.output_dir_path + suffix):
+            suffix = f"({count})"
+            count += 1
+        self.conf.output_dir_path += suffix
         os.makedirs(self.conf.output_dir_path)

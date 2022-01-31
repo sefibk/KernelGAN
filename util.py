@@ -1,15 +1,11 @@
 import os
-import time
 import torch
 import numpy as np
 from PIL import Image
 import scipy.io as sio
-import matplotlib.pyplot as plt
 from scipy.signal import convolve2d
 from torch.nn import functional as F
 from scipy.ndimage import measurements, interpolation
-
-from ZSSRforKernelGAN.ZSSR import ZSSR
 
 
 def move2cpu(d):
@@ -218,18 +214,3 @@ def save_final_kernel(k_2, conf):
     if conf.X4:
         k_4 = analytic_kernel(k_2)
         sio.savemat(os.path.join(conf.output_dir_path, '%s_kernel_x4.mat' % conf.img_name), {'Kernel': k_4})
-
-
-def run_zssr(k_2, conf):
-    """Performs ZSSR with estimated kernel for wanted scale factor"""
-    if conf.do_ZSSR:
-        start_time = time.time()
-        print('~' * 30 + '\nRunning ZSSR X%d...' % (4 if conf.X4 else 2))
-        if conf.X4:
-            sr = ZSSR(conf.input_image_path, scale_factor=[[2, 2], [4, 4]], kernels=[k_2, analytic_kernel(k_2)], is_real_img=conf.real_image, noise_scale=conf.noise_scale).run()
-        else:
-            sr = ZSSR(conf.input_image_path, scale_factor=2, kernels=[k_2], is_real_img=conf.real_image, noise_scale=conf.noise_scale).run()
-        max_val = 255 if sr.dtype == 'uint8' else 1.
-        plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s.png' % conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
-        runtime = int(time.time() - start_time)
-        print('Completed! runtime=%d:%d\n' % (runtime // 60, runtime % 60) + '~' * 30)

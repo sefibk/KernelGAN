@@ -66,11 +66,11 @@ class ZSSR:
     # Tensorflow graph default
     sess = None
 
-    def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1.):
+    def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1., disc_loss=False):
         # Save input image path
         self.input_img_path = input_img_path
         # Acquire meta parameters configuration from configuration class as a class variable
-        self.conf = Config(scale_factor, is_real_img, noise_scale)
+        self.conf = Config(scale_factor, is_real_img, noise_scale, disc_loss)
         # Read input image
         self.input = img.imread(input_img_path)
         # Discard the alpha channel from images
@@ -116,6 +116,10 @@ class ZSSR:
             self.kernels = [kernel_shift(kernel, sf) for kernel, sf in zip(kernels, self.conf.scale_factors)]
         else:
             self.kernels = [self.conf.downscale_method] * len(self.conf.scale_factors)
+
+    def set_disc_loss(self, D, DiscLoss):
+        self.D = D
+        self.DiscLoss = DiscLoss
 
     def run(self):
         # Run gradually on all scale factors (if only one jump then this loop only happens once)
@@ -266,8 +270,13 @@ class ZSSR:
             # Add batch dimension
             hr_father = torch.unsqueeze(hr_father, dim=0)
             cropped_loss_map = torch.unsqueeze(cropped_loss_map, dim=0)
+            # Pass ZSSR output through Discriminator
+            d_pred_fake = self.D.forward(pred)
             # Final loss (Weighted (cropped_loss_map) L1 loss between label and output layer)
-            loss = self.criterion(pred, hr_father, cropped_loss_map)
+            if self.conf.disc_loss:
+                loss = self.criterion(pred, hr_father, cropped_loss_map) + self.DiscLoss(d_last_layer=d_pred_fake, is_d_input_real=True, zssr_shape=True)
+            else:
+                loss = self.criterion(pred, hr_father, cropped_loss_map)
             # Initiate backprop
             loss.backward()
             self.optimizer.step()

@@ -1,8 +1,12 @@
+import time
+import os
+import matplotlib.pyplot as plt
 import torch
 import loss
+from ZSSRforKernelGAN.ZSSR import ZSSR
 import networks
 import torch.nn.functional as F
-from util import save_final_kernel, run_zssr, post_process_k
+from util import save_final_kernel, post_process_k
 
 
 class KernelGAN:
@@ -22,6 +26,9 @@ class KernelGAN:
         # Define the GAN
         self.G = networks.Generator(conf).to(self.device)
         self.D = networks.Discriminator(conf).to(self.device)
+
+        # Initiate ZSSR without kernel, kernel will be added once it computed
+        self.ZSSR = ZSSR(conf.input_image_path, scale_factor=2, kernels=None, is_real_img=conf.real_image, noise_scale=conf.noise_scale, disc_loss = self.conf.DL)
 
         # Calculate D's input & output shape according to the shaving done by the networks
         self.d_input_shape = self.G.output_size
@@ -125,5 +132,19 @@ class KernelGAN:
         final_kernel = post_process_k(self.curr_k, n=self.conf.n_filtering)
         save_final_kernel(final_kernel, self.conf)
         print('KernelGAN estimation complete!')
-        run_zssr(final_kernel, self.conf)
+        self.run_zssr(final_kernel)
         print('FINISHED RUN (see --%s-- folder)\n' % self.conf.output_dir_path + '*' * 60 + '\n\n')
+
+
+    def run_zssr(self, final_kernel):
+        """Performs ZSSR with estimated kernel for wanted scale factor"""
+        start_time = time.time()
+        print('~' * 30 + '\nRunning ZSSR X%d ' % (4 if self.conf.X4 else 2) + f"with{'' if self.conf.use_kernel else 'out'} kernel and with{'' if self.conf.DL else 'out'} discriminator loss...")
+        if self.conf.use_kernel:
+            self.ZSSR.set_kernels([final_kernel])
+        self.ZSSR.set_disc_loss(self.D, self.criterionGAN)
+        sr = self.ZSSR.run()
+        max_val = 255 if sr.dtype == 'uint8' else 1.
+        plt.imsave(os.path.join(self.conf.output_dir_path, 'ZSSR_%s.png' % self.conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
+        runtime = int(time.time() - start_time)
+        print('Completed! runtime=%d:%d\n' % (runtime // 60, runtime % 60) + '~' * 30)
