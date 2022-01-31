@@ -117,6 +117,9 @@ class ZSSR:
         else:
             self.kernels = [self.conf.downscale_method] * len(self.conf.scale_factors)
 
+    def set_disc_loss(self, DiscLoss):
+        self.DiscLoss = DiscLoss
+
     def run(self):
         # Run gradually on all scale factors (if only one jump then this loop only happens once)
         print('*' * 60 + '\nSTARTED ZSSR on: \"%s\"...' % self.input_img_path)
@@ -267,7 +270,7 @@ class ZSSR:
             hr_father = torch.unsqueeze(hr_father, dim=0)
             cropped_loss_map = torch.unsqueeze(cropped_loss_map, dim=0)
             # Final loss (Weighted (cropped_loss_map) L1 loss between label and output layer)
-            loss = self.criterion(pred, hr_father, cropped_loss_map)
+            loss = self.criterion(pred, hr_father, cropped_loss_map) + self.DiscLoss(d_last_layer=pred, is_d_input_real=True)
             # Initiate backprop
             loss.backward()
             self.optimizer.step()

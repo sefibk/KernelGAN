@@ -1,8 +1,9 @@
 import torch
 import loss
+from ZSSRforKernelGAN.ZSSR import ZSSR
 import networks
 import torch.nn.functional as F
-from util import save_final_kernel, run_zssr, post_process_k
+from util import save_final_kernel, post_process_k
 
 
 class KernelGAN:
@@ -22,6 +23,9 @@ class KernelGAN:
         # Define the GAN
         self.G = networks.Generator(conf).to(self.device)
         self.D = networks.Discriminator(conf).to(self.device)
+
+        # Initiate ZSSR without kernel, kernel will be added once it computed
+        self.ZSSR = ZSSR(conf.input_image_path, scale_factor=2, kernels=None, is_real_img=conf.real_image, noise_scale=conf.noise_scale)
 
         # Calculate D's input & output shape according to the shaving done by the networks
         self.d_input_shape = self.G.output_size
@@ -125,5 +129,7 @@ class KernelGAN:
         final_kernel = post_process_k(self.curr_k, n=self.conf.n_filtering)
         save_final_kernel(final_kernel, self.conf)
         print('KernelGAN estimation complete!')
-        run_zssr(final_kernel, self.conf)
+        self.ZSSR.set_kernels(final_kernel)
+        self.ZSSR.set_disc_loss(self.criterionGAN)
+        self.ZSSR.run()
         print('FINISHED RUN (see --%s-- folder)\n' % self.conf.output_dir_path + '*' * 60 + '\n\n')
