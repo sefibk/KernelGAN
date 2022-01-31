@@ -20,11 +20,14 @@ class GANLoss(nn.Module):
         # The two possible label maps are pre-prepared
         self.label_tensor_fake = Variable(torch.zeros(d_last_layer_shape).to(self.device), requires_grad=False)
         self.label_tensor_real = Variable(torch.ones(d_last_layer_shape).to(self.device), requires_grad=False)
+        self.label_tensor_real_zssr = None
 
     def forward(self, d_last_layer, is_d_input_real, zssr_shape=False):
         # Determine label map according to whether current input to discriminator is real or fake
         if zssr_shape:
-            label_tensor = Variable(torch.ones_like(d_last_layer).to(self.device), requires_grad=False) if is_d_input_real else Variable(torch.zeros_like(d_last_layer).to(self.device), requires_grad=False)
+            if self.label_tensor_real_zssr is None:
+                self.label_tensor_real_zssr = Variable(torch.ones_like(d_last_layer).to(self.device), requires_grad=False)
+            label_tensor = self.label_tensor_real_zssr
         else:
             label_tensor = self.label_tensor_real if is_d_input_real else self.label_tensor_fake
         # Compute the loss
