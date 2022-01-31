@@ -117,7 +117,8 @@ class ZSSR:
         else:
             self.kernels = [self.conf.downscale_method] * len(self.conf.scale_factors)
 
-    def set_disc_loss(self, DiscLoss):
+    def set_disc_loss(self, D, DiscLoss):
+        self.D = D
         self.DiscLoss = DiscLoss
 
     def run(self):
@@ -269,8 +270,10 @@ class ZSSR:
             # Add batch dimension
             hr_father = torch.unsqueeze(hr_father, dim=0)
             cropped_loss_map = torch.unsqueeze(cropped_loss_map, dim=0)
+            # Pass ZSSR output through Discriminator
+            d_pred_fake = self.D.forward(pred)
             # Final loss (Weighted (cropped_loss_map) L1 loss between label and output layer)
-            loss = self.criterion(pred, hr_father, cropped_loss_map) + self.DiscLoss(d_last_layer=pred, is_d_input_real=True)
+            loss = self.criterion(pred, hr_father, cropped_loss_map) + self.DiscLoss(d_last_layer=d_pred_fake, is_d_input_real=True, zssr_shape=True)
             # Initiate backprop
             loss.backward()
             self.optimizer.step()
