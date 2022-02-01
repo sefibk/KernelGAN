@@ -13,12 +13,6 @@ def move2cpu(d):
     return d.detach().cpu().float().numpy()
 
 
-def tensor2im(im_t):
-    """Copy the tensor to the cpu & convert to range [0,255]"""
-    im_np = np.clip(np.round((np.transpose(move2cpu(im_t).squeeze(0), (1, 2, 0)) + 1) / 2.0 * 255.0), 0, 255)
-    return im_np.astype(np.uint8)
-
-
 def im2tensor(im_np):
     """Copy the image to the gpu & converts to range [-1,1]"""
     im_np = im_np / 255.0 if im_np.dtype == 'uint8' else im_np

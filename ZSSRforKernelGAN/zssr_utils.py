@@ -160,19 +160,6 @@ def random_augment(ims,
     return np.clip(warpPerspective(im, transform_mat, (crop_size, crop_size), flags=INTER_CUBIC), 0, 1), \
            warpPerspective(loss_map_sources[scale_ind], transform_mat, (crop_size, crop_size), flags=INTER_CUBIC)
 
-
-def preprocess_kernels(kernels, conf):
-    # Load kernels if given files. if not just use the downscaling method from the configs.
-    # output is a list of kernel-arrays or a a list of strings indicating downscaling method.
-    # In case of arrays, we shift the kernels (see next function for explanation why).
-    # Kernel is a .mat file (MATLAB) containing a variable called 'Kernel' which is a 2-dim matrix.
-    if kernels is not None:
-        return [kernel_shift(loadmat(kernel)['Kernel'], sf)
-                for kernel, sf in zip(kernels, conf.scale_factors)]
-    else:
-        return [conf.downscale_method] * len(conf.scale_factors)
-
-
 def kernel_shift(kernel, sf):
     # There are two reasons for shifting the kernel :
     # 1. Center of mass is not in the center of the kernel which creates ambiguity. There is no possible way to know
@@ -199,55 +186,6 @@ def kernel_shift(kernel, sf):
 
     return kernel
 
-
-def tensorshave(im, margin):
-    shp = tf.shape(im)
-    if shp[3] == 3:
-        return im[:, margin:-margin, margin:-margin, :]
-    else:
-        return im[:, margin:-margin, margin:-margin]
-
-
-def rgb_augment(im, rndm=True, shuff_ind=0):
-    if rndm:
-        shuffle = sample(range(3), 3)
-    else:
-        shuffle = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]
-        shuffle = shuffle[shuff_ind]
-
-    return im[:, :, shuffle]
-
-
-def probability_map(im, crop_size):
-    # margin of probabilities that will be zero
-    margin = crop_size // 2 - 1
-    prob_map = np.zeros(im.shape[0:2])
-    # Gradient calculation
-    gx, gy, _ = np.gradient(im)
-    grad_magnitude = np.sum(np.sqrt(gx ** 2 + gy ** 2), axis=2)
-    # Convolving with rect to get a map of probabilities per crop
-    rect = np.ones([crop_size - 3, crop_size - 3])
-    grad_magnitude_conv = convolve2d(grad_magnitude, rect, 'same')
-    # Copying the values without the margins of the image
-    prob_map[margin:-margin, margin:-margin] = grad_magnitude_conv[margin:-margin, margin:-margin]
-    # normalize for probabilities
-    sum_of_grads = np.sum(prob_map)
-    prob_map = prob_map / sum_of_grads
-
-    return prob_map
-
-
-def choose_center_of_crop(prob_map):
-    # Retrieving a probability map and reshaping to be a vector
-    prob_vector = np.reshape(prob_map, prob_map.shape[0] * prob_map.shape[1])
-    # creating a vector of indices to match the image
-    indices = np.arange(start=0, stop=prob_map.shape[0] * prob_map.shape[1])
-    # Choosing an index according to the probabilities
-    index_choice = np.random.choice(indices, p=prob_vector)
-    # Translating to an index in the image - row, column
-    return index_choice // prob_map.shape[1], index_choice % prob_map.shape[1]
-
-
 def create_loss_map(im, window=5, clip_rng=np.array([0.0, 255.0])):
     # Counting number of pixels for normalization issues
     numel = im.shape[0] * im.shape[1]
@@ -272,26 +210,6 @@ def create_loss_map(im, window=5, clip_rng=np.array([0.0, 255.0])):
         loss_map = np.append(np.append(loss_map, loss_map, axis=2), loss_map, axis=2)
 
     return loss_map
-
-
-def image_float2int(im):
-    """converts a float image to uint"""
-    if np.max(im) < 2:
-        im = im * 255.
-    return np.uint8(im)
-
-
-def image_int2float(im):
-    """converts a uint image to float"""
-    return np.float32(im) / 255. if np.max(im) > 2 else im
-
-
-def back_project_image(lr, sf=2, output_shape=None, down_kernel='cubic', up_kernel='cubic', bp_iters=8):
-    """Runs 'bp_iters' iteration of back projection SR technique"""
-    tmp_sr = imresize(lr, scale_factor=sf, output_shape=output_shape, kernel=up_kernel)
-    for _ in range(bp_iters):
-        tmp_sr = back_projection(y_sr=tmp_sr, y_lr=lr, down_kernel=down_kernel, up_kernel=up_kernel, sf=sf)
-    return tmp_sr
 
 
 def back_projection(y_sr, y_lr, down_kernel, up_kernel, sf=None):

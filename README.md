@@ -1,29 +1,23 @@
-# Blind Super-Resolution Kernel Estimation using an Internal-GAN
-# "KernelGAN"
-### Sefi Bell-Kligler, Assaf Shocher, Michal Irani 
-*(Official implementation)*
-
-Paper: https://arxiv.org/abs/1909.06581
-
-Project page: http://www.wisdom.weizmann.ac.il/~vision/kernelgan/  
-
-**Accepted NeurIPS 2019 (oral)**
-
+# Zero Shot Super Resolution using KernelGAN estimated Kernel and Discriminator
+# "ZSSRGAN"
+### Dan Bar, Neta Shaul, Yeari Vigder 
 
 ## Usage:
 
 ### Quick usage on your data:  
-To run KernelGAN on all images in <input_image_path>:
+To run ZSSRGAN on all images in <input_image_path>:
 
 ``` python train.py --input-dir <input_image_path> ```
 
 
-This will produce kernel estimations in the results folder
+This will produce kernel estimations and super resolution image in the results folder
 
 ### Extra configurations:  
 ```--X4``` : Estimate the X4 kernel
 
-```--SR``` : Perform ZSSR using the estimated kernel
+```--UK``` : Perform ZSSR using the estimated kernel
+
+```--DL``` : Perform ZSSR using the discriminator loss
 
 ```--real``` : Real-image configuration (effects only the ZSSR)
 
@@ -32,5 +26,3 @@ This will produce kernel estimations in the results folder
 
 ### Data:
 Download the DIV2KRK dataset: [dropbox](http://www.wisdom.weizmann.ac.il/~vision/kernelgan/DIV2KRK_public.zip)
-
-Reproduction code for your own Blind-SR dataset: [github](https://github.com/assafshocher/BlindSR_dataset_generator)
