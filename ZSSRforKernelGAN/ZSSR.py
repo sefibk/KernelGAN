@@ -2,6 +2,7 @@ import math
 import torch
 import tqdm
 from util import *
+from torch.utils.tensorboard import SummaryWriter
 import matplotlib.image as img
 from ZSSRforKernelGAN.zssr_configs import Config
 from ZSSRforKernelGAN.zssr_utils import *
@@ -68,6 +69,8 @@ class ZSSR:
     sess = None
 
     def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1., disc_loss=False):
+        #define the writer to log info into TensorBoard
+        self.writer = SummaryWriter()
         # Save input image path
         self.input_img_path = input_img_path
         # Acquire meta parameters configuration from configuration class as a class variable
@@ -271,13 +274,16 @@ class ZSSR:
             # Add batch dimension
             hr_father = torch.unsqueeze(hr_father, dim=0)
             cropped_loss_map = torch.unsqueeze(cropped_loss_map, dim=0)
-            # Pass ZSSR output through Discriminator
-            d_pred_fake = self.D.forward(pred)
-            # Final loss (Weighted (cropped_loss_map) L1 loss between label and output layer)
+            loss = self.criterion(pred, hr_father, cropped_loss_map)
+            self.writer.add_scalar("L1Loss/train", loss, self.iter)
+            disk_loss = 0
             if self.conf.disc_loss:
-                loss = self.criterion(pred, hr_father, cropped_loss_map) + self.DiscLoss(d_last_layer=d_pred_fake, is_d_input_real=True, zssr_shape=True)
-            else:
-                loss = self.criterion(pred, hr_father, cropped_loss_map)
+                # Pass ZSSR output through Discriminator
+                d_pred_fake = self.D.forward(pred)
+                # Calculate the disc loss
+                disk_loss = self.DiscLoss(d_last_layer=d_pred_fake, is_d_input_real=True, zssr_shape=True)
+                self.writer.add_scalar("DiskLoss/train", disk_loss, self.iter)
+            loss += disk_loss
             # Initiate backprop
             loss.backward()
             self.optimizer.step()
