@@ -1,3 +1,4 @@
+import math
 import torch
 import tqdm
 from torch.utils.tensorboard import SummaryWriter
@@ -66,7 +67,7 @@ class ZSSR:
     # Tensorflow graph default
     sess = None
 
-    def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1., disc_loss=False):
+    def __init__(self, input_img_path, scale_factor=2, kernel=None, is_real_img=False, noise_scale=1., disc_loss=False):
         # define the writer to log info into TensorBoard
         self.writer = SummaryWriter()
         # Save input image path
@@ -83,9 +84,16 @@ class ZSSR:
             self.input = np.expand_dims(self.input, -1)
         self.input = self.input / 255. if self.input.dtype == 'uint8' else self.input
         self.gt = None
+
+        # backward support, probably should be deprecated later
+        self.sf = np.array(self.conf.scale_factor)
+
+        # set output shape
+        self.output_shape = np.uint(np.ceil(np.array(self.input.shape[0:2]) * self.sf))
+
         # Shift kernel to avoid misalignment
-        self.kernels = []
-        self.set_kernels(kernels)
+        self.kernel = None
+        self.set_kernel(kernel)
 
         # Check if cuda is available
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -124,11 +132,11 @@ class ZSSR:
         self.values_DiscLoss_Z = []
         self.values_L1Loss_Z = []
 
-    def set_kernels(self, kernels):
-        if kernels is not None:
-            self.kernels = [kernel_shift(kernel, sf) for kernel, sf in zip(kernels, self.conf.scale_factors)]
+    def set_kernel(self, kernel):
+        if kernel is not None:
+            self.kernel = kernel_shift(kernel, self.conf.scale_factor)
         else:
-            self.kernels = [self.conf.downscale_method] * len(self.conf.scale_factors)
+            self.kernel = self.conf.downscale_method
 
     def set_disc_loss(self, D, DiscLoss):
         self.D = D
@@ -137,34 +145,12 @@ class ZSSR:
     def run(self):
         # Run gradually on all scale factors (if only one jump then this loop only happens once)
         print('*' * 60 + '\nSTARTED ZSSR on: \"%s\"...' % self.input_img_path)
-        for self.sf_ind, (sf, self.kernel) in enumerate(zip(self.conf.scale_factors, self.kernels)):
-            # Relative_sf (used when base change is enabled. this is when input is the output of some previous scale)
-            sf = [sf, sf] if np.isscalar(sf) else sf
-            self.sf = np.array(sf) / np.array(self.base_sf)
 
-            self.output_shape = np.uint(np.ceil(np.array(self.input.shape[0:2]) * sf))
+        # Train the network
+        self.train()
 
-            # Initialize network
-            self.init_sess(init_weights=self.conf.init_net_for_each_sf)
-
-            # Train the network
-            self.train()
-
-            # Use augmented outputs and back projection to enhance result. Also save the result.
-            post_processed_output = self.final_test()
-
-            # Keep the results for the next scale factors SR to use as dataset
-            self.hr_fathers_sources.append(post_processed_output)
-
-            # append a corresponding map loss
-            if self.conf.grad_based_loss_map:
-                self.loss_map_sources.append(create_loss_map(im=post_processed_output))
-            else:
-                self.loss_map_sources.append(np.ones_like(post_processed_output))
-
-            # In some cases, the current output becomes the new input. If indicated and if this is the right scale to
-            # become the new base input. all of these conditions are checked inside the function.
-            self.base_change()
+        # Use augmented outputs and back projection to enhance result. Also save the result.
+        post_processed_output = self.final_test()
 
         # Return the final post processed output.
         # noinspection PyUnboundLocalVariable
@@ -296,26 +282,7 @@ class ZSSR:
         # Add colors to result image in case net was activated only on grayscale
         return self.final_sr
 
-    def base_change(self):
-        # If there is no base scale large than the current one get out of here
-        if len(self.conf.base_change_sfs) < self.base_ind + 1:
-            return
-
-        # Change base input image if required (this means current output becomes the new input)
-        if abs(self.conf.scale_factors[self.sf_ind] - self.conf.base_change_sfs[self.base_ind]) < 0.001:
-            if len(self.conf.base_change_sfs) > self.base_ind:
-                # The new input is the current output
-                self.input = self.final_sr
-
-                # The new base scale_factor
-                self.base_sf = self.conf.base_change_sfs[self.base_ind]
-
-                # Keeping track- this is the index inside the base scales list (provided in the config)
-                self.base_ind += 1
-
-            print('base changed to %.2f' % self.base_sf)
-
-    def epoch_Z(self, kernels=None):
+    def epoch_Z(self, kernel=None):
         # Increment epcho number of ZSSR
         self.epoch_num_Z += 1
         # Use augmentation from original input image to create current father.
@@ -325,11 +292,11 @@ class ZSSR:
 
         hr_father, cropped_loss_map = \
             random_augment(ims=self.hr_fathers_sources,
-                           base_scales=[1.0] + self.conf.scale_factors,
+                           base_scales=[1.0] + [self.conf.scale_factor],
                            leave_as_is_probability=self.conf.augment_leave_as_is_probability,
                            no_interpolate_probability=self.conf.augment_no_interpolate_probability,
                            min_scale=self.conf.augment_min_scale,
-                           max_scale=([1.0] + self.conf.scale_factors)[len(self.hr_fathers_sources) - 1],
+                           max_scale=([1.0] + [self.conf.scale_factor])[0],
                            allow_rotation=self.conf.augment_allow_rotation,
                            scale_diff_sigma=self.conf.augment_scale_diff_sigma,
                            shear_sigma=self.conf.augment_shear_sigma,
@@ -338,8 +305,8 @@ class ZSSR:
                            crop_center=crop_center,
                            loss_map_sources=self.loss_map_sources)
         # set the kernel of the for father_to_son
-        if kernels:
-            self.set_kernels(kernels)
+        if kernel:
+            self.set_kernel(kernel)
         # Get lr-son from hr-father
         self.lr_son = self.father_to_son(hr_father)
         # run network forward and back propagation, one iteration (This is the heart of the training)

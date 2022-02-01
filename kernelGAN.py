@@ -6,7 +6,7 @@ import loss
 from ZSSRforKernelGAN.ZSSR import ZSSR
 import networks
 import torch.nn.functional as F
-from util import save_final_kernel, post_process_k
+from util import save_final_kernel, post_process_k, analytic_kernel
 
 
 class KernelGAN:
@@ -27,8 +27,10 @@ class KernelGAN:
         self.G = networks.Generator(conf).to(self.device)
         self.D = networks.Discriminator(conf).to(self.device)
 
+        # scale factor to for ZSSR
+        sf = 4 if self.conf.X4 else 2
         # Initiate ZSSR without kernel, kernel will be added once it computed
-        self.ZSSR = ZSSR(conf.input_image_path, scale_factor=2, kernels=None, is_real_img=conf.real_image, noise_scale=conf.noise_scale, disc_loss = self.conf.DL)
+        self.ZSSR = ZSSR(conf.input_image_path, scale_factor=sf, kernel=None, is_real_img=conf.real_image, noise_scale=conf.noise_scale, disc_loss=self.conf.DL)
 
         # Calculate D's input & output shape according to the shaving done by the networks
         self.d_input_shape = self.G.output_size
@@ -141,7 +143,10 @@ class KernelGAN:
         start_time = time.time()
         print('~' * 30 + '\nRunning ZSSR X%d ' % (4 if self.conf.X4 else 2) + f"with{'' if self.conf.use_kernel else 'out'} kernel and with{'' if self.conf.DL else 'out'} discriminator loss...")
         if self.conf.use_kernel:
-            self.ZSSR.set_kernels([final_kernel])
+            if self.conf.X4:
+                self.ZSSR.set_kernel(analytic_kernel(final_kernel))
+            else:
+                self.ZSSR.set_kernel(final_kernel)
         self.ZSSR.set_disc_loss(self.D, self.criterionGAN)
         sr = self.ZSSR.run()
         max_val = 255 if sr.dtype == 'uint8' else 1.
