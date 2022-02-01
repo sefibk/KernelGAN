@@ -73,14 +73,14 @@ class KernelGAN:
 
     def train(self, g_input, d_input):
         self.set_input(g_input, d_input)
-        self.train_g()
-        self.train_d()
+        self.epoch_G()
+        self.epoch_D()
 
     def set_input(self, g_input, d_input):
         self.g_input = g_input.contiguous()
         self.d_input = d_input.contiguous()
 
-    def train_g(self):
+    def epoch_G(self):
         # Zeroize gradients
         self.optimizer_G.zero_grad()
         # Generator forward pass
@@ -110,7 +110,7 @@ class KernelGAN:
                loss_boundaries * self.lambda_boundaries + loss_centralized * self.lambda_centralized + \
                loss_sparse * self.lambda_sparse
 
-    def train_d(self):
+    def epoch_D(self):
         # Zeroize gradients
         self.optimizer_D.zero_grad()
         # Discriminator forward pass over real example
