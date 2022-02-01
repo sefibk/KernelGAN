@@ -1,13 +1,10 @@
-import math
 import torch
 import tqdm
+from torch.utils.tensorboard import SummaryWriter
 import matplotlib.image as img
 from ZSSRforKernelGAN.zssr_configs import Config
 from ZSSRforKernelGAN.zssr_utils import *
 from ZSSRforKernelGAN.ZSSR_network import *
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-
 
 class ZSSR:
     # Basic current state variables initialization / declaration
@@ -70,6 +67,8 @@ class ZSSR:
     sess = None
 
     def __init__(self, input_img_path, scale_factor=2, kernels=None, is_real_img=False, noise_scale=1., disc_loss=False):
+        # define the writer to log info into TensorBoard
+        self.writer = SummaryWriter()
         # Save input image path
         self.input_img_path = input_img_path
         # Acquire meta parameters configuration from configuration class as a class variable
@@ -115,7 +114,7 @@ class ZSSR:
         self.optimizer_Z = torch.optim.Adam(self.network.parameters(), lr=self.learning_rate, betas=(0.9, 0.999))
 
         # keep track of number of epchos for ZSSR
-        self.epcho_num_Z = 0
+        self.epoch_num_Z = 0
 
         # set to true to stop ZSSR training early
         self.stop_early_Z = False
@@ -318,7 +317,7 @@ class ZSSR:
 
     def epoch_Z(self, kernels=None):
         # Increment epcho number of ZSSR
-        self.epcho_num_Z += 1
+        self.epoch_num_Z += 1
         # Use augmentation from original input image to create current father.
         # If other scale factors were applied before, their result is also used (hr_fathers_in)
         # crop_center = choose_center_of_crop(self.prob_map) if self.conf.choose_varying_crop else None
@@ -359,13 +358,15 @@ class ZSSR:
         cropped_loss_map = torch.unsqueeze(cropped_loss_map, dim=0)
         # loss (Weighted (cropped_loss_map) L1 loss between label and output layer)
         loss_L1 = self.criterion(pred, hr_father, cropped_loss_map)
+        self.writer.add_scalar("L1Loss/train", loss_L1, self.epoch_num_Z)
         if self.conf.disc_loss:
             # Pass ZSSR output through Discriminator
             d_pred_fake = self.D.forward(pred)
-            # Final loss (Weighted (cropped_loss_map) L1 loss between label and output layer) + Discriminator loss
+            # Calculate the disc loss
             loss_Disc = self.DiscLoss(d_last_layer=d_pred_fake,
                                       is_d_input_real=True,
                                       zssr_shape=True)
+            self.writer.add_scalar("DiskLoss/train", loss_Disc, self.iter)
         else:
             # Final loss (Weighted (cropped_loss_map) L1 loss between label and output layer)
             loss_Disc = 0
@@ -389,7 +390,7 @@ class ZSSR:
         """
 
         # Test network
-        if self.conf.run_test and (not self.epcho_num_Z % self.conf.run_test_every):
+        if self.conf.run_test and (not self.epoch_num_Z % self.conf.run_test_every):
             self.quick_test()
 
         # Consider changing learning rate or stop according to iteration number and losses slope
