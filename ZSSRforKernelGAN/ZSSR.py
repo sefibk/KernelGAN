@@ -1,6 +1,7 @@
 import math
 import torch
 import tqdm
+from util import *
 import matplotlib.image as img
 from ZSSRforKernelGAN.zssr_configs import Config
 from ZSSRforKernelGAN.zssr_utils import *
@@ -177,7 +178,7 @@ class ZSSR:
         # Clip output between 0,1
         output_img = torch.clamp(output_img, min=0, max=1)
         # Convert torch to numpy
-        output_img = output_img.detach().cpu().numpy()
+        output_img = move2cpu(output_img)
         return output_img
 
     def learning_rate_policy(self):
@@ -280,19 +281,6 @@ class ZSSR:
             # Initiate backprop
             loss.backward()
             self.optimizer.step()
-
-            """
-            # Reduce batch dim
-            output_img = torch.squeeze(pred)
-            # channels to last dim
-            output_img = torch.permute(output_img, dims=(1, 2, 0))
-            # Clip output between 0,1
-            output_img = torch.clamp(output_img, min=0, max=1)
-            # Convert torch to numpy
-            output_img = output_img.detach().numpy()
-            # need to check why this output is needed
-            self.train_output = output_img
-            """
 
             # Test network
             if self.conf.run_test and (not self.iter % self.conf.run_test_every):

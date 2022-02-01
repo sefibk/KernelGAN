@@ -127,3 +127,5 @@ dmypy.json
 .idea/
 .vscode/
 /results/*
+/train/Test
+/train/Test/*

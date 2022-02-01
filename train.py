@@ -29,7 +29,6 @@ def main():
     prog.add_argument('--X4', action='store_true', help='The wanted SR scale factor')
     prog.add_argument('--DL', action='store_true', help='When activated - ZSSR will use an additional discriminator loss.')
     prog.add_argument('--UK', action='store_true', help='When activated - ZSSR will use the kernel of Kergan.')
-    prog.add_argument('--SR', action='store_true', help='when activated - ZSSR is not performed')
     prog.add_argument('--real', action='store_true', help='ZSSRs configuration is for real images')
     prog.add_argument('--noise_scale', type=float, default=1., help='ZSSR uses this to partially de-noise images')
     args = prog.parse_args()
@@ -50,8 +49,6 @@ def create_params(filename, args):
         params.append('--DL')
     if args.UK:
         params.append('--use_kernel')
-    if args.SR:
-        params.append('--do_ZSSR')
     if args.real:
         params.append('--real_image')
     return params
