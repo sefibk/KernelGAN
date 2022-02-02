@@ -5,8 +5,8 @@ from imresize import imresize
 from scipy.ndimage import measurements, interpolation
 from scipy.io import loadmat
 from scipy.signal import convolve2d
-import tensorflow as tf
 from random import sample
+import matplotlib.image as img
 
 
 def random_augment(ims,
@@ -222,3 +222,16 @@ def back_projection(y_sr, y_lr, down_kernel, up_kernel, sf=None):
                      output_shape=y_sr.shape,
                      kernel=up_kernel)
     return np.clip(y_sr, 0, 1)
+
+
+def read_im(img_path):
+    # Read input image
+    im = img.imread(img_path)
+    # Discard the alpha channel from images
+    if im.shape[-1] == 4:
+        im = img.imread(img_path)[:, :, :3]
+    # For gray-scale images - add a 3rd dimension to fit the network
+    elif len(im.shape) == 2:
+        im = np.expand_dims(im, -1)
+    im = im / 255. if im.dtype == 'uint8' else im
+    return im

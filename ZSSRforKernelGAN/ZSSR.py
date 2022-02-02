@@ -75,14 +75,8 @@ class ZSSR:
         # Acquire meta parameters configuration from configuration class as a class variable
         self.conf = Config(scale_factor, is_real_img, noise_scale, disc_loss)
         # Read input image
-        self.input = img.imread(input_img_path)
-        # Discard the alpha channel from images
-        if self.input.shape[-1] == 4:
-            self.input = img.imread(input_img_path)[:, :, :3]
-        # For gray-scale images - add a 3rd dimension to fit the network
-        elif len(self.input.shape) == 2:
-            self.input = np.expand_dims(self.input, -1)
-        self.input = self.input / 255. if self.input.dtype == 'uint8' else self.input
+        # The first hr father source is the input (source goes through augmentation to become a father)
+        self.input = read_im(input_img_path)
         self.gt = None
 
         # backward support, probably should be deprecated later
@@ -91,6 +85,13 @@ class ZSSR:
         # set output shape
         self.output_shape = np.uint(np.ceil(np.array(self.input.shape[0:2]) * self.sf))
 
+        # set initial learning rate
+        self.learning_rate = self.conf.learning_rate
+
+        # Initialize all counters etc
+        self.mse, self.mse_rec, self.interp_mse, self.interp_rec_mse, self.mse_steps = [], [], [], [], []
+        self.learning_rate_change_iter_nums = [0]
+
         # Shift kernel to avoid misalignment
         self.kernel = None
         self.set_kernel(kernel)
@@ -98,39 +99,28 @@ class ZSSR:
         # Check if cuda is available
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # Build network computational graph
-        # self.build_network(self.conf) NOT ALL IS IMPLEMENTED YET
         self.network = ZSSRNetwork(self.conf).to(self.device)
 
-        # Initialize network weights and meta parameters
+        # Initialize network weights
         self.weights_initiator = WeightsInitZSSR(self.conf)
-        self.init_sess(init_weights=True)
-
-        # The first hr father source is the input (source goes through augmentation to become a father)
-        # Later on, if we use gradual sr increments, results for intermediate scales will be added as sources.
-        self.hr_fathers_sources = [self.input]
+        self.network.apply(self.weights_initiator)
 
         # Create a loss map reflecting the weights per pixel of the image
+        # loss maps that correspond to the father sources array
         self.loss_map = create_loss_map(im=self.input) if self.conf.grad_based_loss_map else np.ones_like(self.input)
 
         # define loss function
         self.criterion = WeightedL1Loss()
 
-        # loss maps that correspond to the father sources array
-        self.loss_map_sources = [self.loss_map]
-
         # Optimizers
         self.optimizer_Z = torch.optim.Adam(self.network.parameters(), lr=self.learning_rate, betas=(0.9, 0.999))
 
         # keep track of number of epchos for ZSSR
-        self.epoch_num_Z = 0
+        self.epoch_num_Z = -1
 
         # set to true to stop ZSSR training early
         self.stop_early_Z = False
 
-        # keep track of losses for plotting
-        self.verbose = False  # Need to insert into conf file
-        self.values_DiscLoss_Z = []
-        self.values_L1Loss_Z = []
 
     def set_kernel(self, kernel):
         if kernel is not None:
@@ -156,16 +146,6 @@ class ZSSR:
         # noinspection PyUnboundLocalVariable
         return post_processed_output
 
-    def init_sess(self, init_weights=True):
-        if init_weights:
-            self.network.apply(self.weights_initiator)
-        # Initialize all counters etc
-        self.loss = [None] * self.conf.max_iters
-        self.mse, self.mse_rec, self.interp_mse, self.interp_rec_mse, self.mse_steps = [], [], [], [], []
-        self.iter = 0
-        self.learning_rate = self.conf.learning_rate
-        self.learning_rate_change_iter_nums = [0]
-
     def forward_pass(self, lr_son, hr_father_shape=None):
         # Run net on the input to get the output super-resolution (almost final result, only post-processing needed)
         output_img = self.network.forward(lr_son, self.sf, hr_father_shape)
@@ -181,8 +161,8 @@ class ZSSR:
 
     def learning_rate_policy(self):
         # fit linear curve and check slope to determine whether to do nothing, reduce learning rate or finish
-        if (not (1 + self.iter) % self.conf.learning_rate_policy_check_every
-                and self.iter - self.learning_rate_change_iter_nums[-1] > self.conf.min_iters):
+        if (not (1 + self.epoch_num_Z) % self.conf.learning_rate_policy_check_every
+                and self.epoch_num_Z - self.learning_rate_change_iter_nums[-1] > self.conf.min_iters):
             # noinspection PyTupleAssignmentBalance
             [slope, _], [[var, _], _] = np.polyfit(self.mse_steps[-int(self.conf.learning_rate_slope_range /
                                                                        self.conf.run_test_every):],
@@ -198,7 +178,7 @@ class ZSSR:
                 self.learning_rate /= 10
 
                 # Keep track of learning rate changes for plotting purposes
-                self.learning_rate_change_iter_nums.append(self.iter)
+                self.learning_rate_change_iter_nums.append(self.epoch_num_Z)
                 return True
         return False
 
@@ -207,28 +187,37 @@ class ZSSR:
 
         # 1. True MSE (only if ground-truth was given), note: this error is before post-processing.
         self.sr = self.forward_pass(self.input)
-        self.mse = (self.mse + [np.mean(np.ndarray.flatten(np.square(self.gt_per_sf - self.sr)))]
-                    if self.gt_per_sf is not None else None)
+        if self.gt_per_sf is not None:
+            mse = np.mean(np.ndarray.flatten(np.square(self.gt_per_sf - self.sr)))
+            self.mse = self.mse + [mse]
+            self.writer.add_scalar("True MSE of ground-truth/train", mse, self.epoch_num_Z)
+        else:
+            self.mse = None
 
         # 2. Reconstruction MSE, run for reconstruction- try to reconstruct the input from a downscaled version of it
         self.reconstruct_output = self.forward_pass(self.father_to_son(self.input), self.input.shape)
-        self.mse_rec.append(np.mean(np.ndarray.flatten(np.square(self.input - self.reconstruct_output))))
+        mse_reconstruct = np.mean(np.ndarray.flatten(np.square(self.input - self.reconstruct_output)))
+        self.mse_rec.append(mse_reconstruct)
+        self.writer.add_scalar("Reconstruction MSE of low-res/train", mse_reconstruct, self.epoch_num_Z)
 
         # 3. True MSE of simple interpolation for reference (only if ground-truth was given)
         if self.gt_per_sf is not None:
             interp_sr = imresize(self.input, self.sf, self.output_shape, self.conf.upscale_method)
-
-            self.interp_mse = self.interp_mse + [np.mean(np.ndarray.flatten(np.square(self.gt_per_sf - interp_sr)))]
+            mse_interpolation = np.mean(np.ndarray.flatten(np.square(self.gt_per_sf - interp_sr)))
+            self.interp_mse = self.interp_mse + [mse_interpolation]
+            self.writer.add_scalar("Interpolation MSE of ground-truth/train", mse_interpolation, self.epoch_num_Z)
         else:
             self.interp_mse = None
 
         # 4. Reconstruction MSE of simple interpolation over downscaled input
         interp_rec = imresize(self.father_to_son(self.input), self.sf, self.input.shape[:], self.conf.upscale_method)
-
-        self.interp_rec_mse.append(np.mean(np.ndarray.flatten(np.square(self.input - interp_rec))))
+        mse_interpolation_reconstruct = np.mean(np.ndarray.flatten(np.square(self.input - interp_rec)))
+        self.interp_rec_mse.append(mse_interpolation_reconstruct)
+        self.writer.add_scalar("Interpolation reconstruction MSE of low-res/train", mse_interpolation_reconstruct,
+                               self.epoch_num_Z)
 
         # Track the iters in which tests are made for the graphics x axis
-        self.mse_steps.append(self.iter)
+        self.mse_steps.append(self.epoch_num_Z)
 
     def train(self):
         # main training loop
@@ -291,7 +280,7 @@ class ZSSR:
         crop_center = None
 
         hr_father, cropped_loss_map = \
-            random_augment(ims=self.hr_fathers_sources,
+            random_augment(ims=[self.input],
                            base_scales=[1.0] + [self.conf.scale_factor],
                            leave_as_is_probability=self.conf.augment_leave_as_is_probability,
                            no_interpolate_probability=self.conf.augment_no_interpolate_probability,
@@ -303,7 +292,7 @@ class ZSSR:
                            crop_size=self.conf.crop_size,
                            allow_scale_in_no_interp=self.conf.allow_scale_in_no_interp,
                            crop_center=crop_center,
-                           loss_map_sources=self.loss_map_sources)
+                           loss_map_sources=[self.loss_map])
         # set the kernel of the for father_to_son
         if kernel:
             self.set_kernel(kernel)
@@ -333,7 +322,7 @@ class ZSSR:
             loss_Disc = self.DiscLoss(d_last_layer=d_pred_fake,
                                       is_d_input_real=True,
                                       zssr_shape=True)
-            self.writer.add_scalar("DiskLoss/train", loss_Disc, self.iter)
+            self.writer.add_scalar("DiskLoss/train", loss_Disc, self.epoch_num_Z)
         else:
             # Final loss (Weighted (cropped_loss_map) L1 loss between label and output layer)
             loss_Disc = 0
