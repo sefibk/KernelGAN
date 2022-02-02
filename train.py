@@ -16,7 +16,7 @@ def train(conf):
         [g_in, d_in] = data.__getitem__(iteration)
         gan.train(g_in, d_in)
         learner.update(iteration, gan)
-    gan.finish()
+    return gan.finish()
 
 
 def main():

@@ -134,8 +134,9 @@ class KernelGAN:
         final_kernel = post_process_k(self.curr_k, n=self.conf.n_filtering)
         save_final_kernel(final_kernel, self.conf)
         print('KernelGAN estimation complete!')
-        self.run_zssr(final_kernel)
+        result_path = self.run_zssr(final_kernel)
         print('FINISHED RUN (see --%s-- folder)\n' % self.conf.output_dir_path + '*' * 60 + '\n\n')
+        return result_path
 
 
     def run_zssr(self, final_kernel):
@@ -150,6 +151,8 @@ class KernelGAN:
         self.ZSSR.set_disc_loss(self.D, self.criterionGAN)
         sr = self.ZSSR.run()
         max_val = 255 if sr.dtype == 'uint8' else 1.
-        plt.imsave(os.path.join(self.conf.output_dir_path, 'ZSSR_%s.png' % self.conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
+        result_path = os.path.join(self.conf.output_dir_path, 'ZSSR_%s.png' % self.conf.img_name)
+        plt.imsave(result_path, sr, vmin=0, vmax=max_val, dpi=1)
         runtime = int(time.time() - start_time)
         print('Completed! runtime=%d:%d\n' % (runtime // 60, runtime % 60) + '~' * 30)
+        return result_path
