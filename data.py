@@ -18,6 +18,7 @@ class DataGenerator(Dataset):
 
         # Read input image
         self.input_image = read_image(conf.input_image_path) / 255.
+
         self.shave_edges(scale_factor=conf.scale_factor, real_image=conf.real_image)
 
         self.in_rows, self.in_cols = self.input_image.shape[0:2]
