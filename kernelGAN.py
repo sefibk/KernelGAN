@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import torch
 import loss
+from configs import conf
 from ZSSRforKernelGAN.ZSSR import ZSSR
 import networks
 import torch.nn.functional as F
@@ -17,10 +18,7 @@ class KernelGAN:
     lambda_centralized = 0
     lambda_sparse = 0
 
-    def __init__(self, conf):
-        # Acquire configuration
-        self.conf = conf
-
+    def __init__(self):
         # Check if cuda is available
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # Define the GAN
@@ -28,9 +26,9 @@ class KernelGAN:
         self.D = networks.Discriminator(conf).to(self.device)
 
         # scale factor to for ZSSR
-        sf = 4 if self.conf.X4 else 2
+        sf = 4 if conf.X4 else 2
         # Initiate ZSSR without kernel, kernel will be added once it computed
-        self.ZSSR = ZSSR(conf.input_image_path, scale_factor=sf, kernel=None, is_real_img=conf.real_image, noise_scale=conf.noise_scale, disc_loss=self.conf.DL)
+        self.ZSSR = ZSSR(conf.input_image_path, scale_factor=sf, kernel=None, is_real_img=conf.real_image, noise_scale=conf.noise_scale, disc_loss=conf.DL)
 
         # Calculate D's input & output shape according to the shaving done by the networks
         self.d_input_shape = self.G.output_size
@@ -70,7 +68,7 @@ class KernelGAN:
         """given a generator network, the function calculates the kernel it is imitating"""
         delta = torch.Tensor([1.]).unsqueeze(0).unsqueeze(-1).unsqueeze(-1).to(self.device)
         for ind, w in enumerate(self.G.parameters()):
-            curr_k = F.conv2d(delta, w, padding=self.conf.G_kernel_size - 1) if ind == 0 else F.conv2d(curr_k, w)
+            curr_k = F.conv2d(delta, w, padding=conf.G_kernel_size - 1) if ind == 0 else F.conv2d(curr_k, w)
         self.curr_k = curr_k.squeeze().flip([0, 1])
 
     def train(self, g_input, d_input):
@@ -149,33 +147,33 @@ class KernelGAN:
         self.optimizer_D.step()
 
     def finish(self):
-        final_kernel = post_process_k(self.curr_k, n=self.conf.n_filtering)
-        save_final_kernel(final_kernel, self.conf)
+        final_kernel = post_process_k(self.curr_k, n=conf.n_filtering)
+        save_final_kernel(final_kernel, conf)
         print('KernelGAN estimation complete!')
         self.run_zssr(final_kernel)
-        print('FINISHED RUN (see --%s-- folder)\n' % self.conf.output_dir_path + '*' * 60 + '\n\n')
+        print('FINISHED RUN (see --%s-- folder)\n' % conf.output_dir_path + '*' * 60 + '\n\n')
 
 
     def run_zssr(self, final_kernel):
         """Performs ZSSR with estimated kernel for wanted scale factor"""
         start_time = time.time()
-        print('~' * 30 + '\nRunning ZSSR X%d ' % (4 if self.conf.X4 else 2) + f"with{'' if self.conf.use_kernel else 'out'} kernel and with{'' if self.conf.DL else 'out'} discriminator loss...")
-        if self.conf.use_kernel:
-            if self.conf.X4:
+        print('~' * 30 + '\nRunning ZSSR X%d ' % (4 if conf.X4 else 2) + f"with{'' if conf.use_kernel else 'out'} kernel and with{'' if conf.DL else 'out'} discriminator loss...")
+        if conf.use_kernel:
+            if conf.X4:
                 self.ZSSR.set_kernel(analytic_kernel(final_kernel))
             else:
                 self.ZSSR.set_kernel(final_kernel)
         self.ZSSR.set_disc_loss(self.D, self.criterionGAN)
         sr = self.ZSSR.run()
         max_val = 255 if sr.dtype == 'uint8' else 1.
-        plt.imsave(os.path.join(self.conf.output_dir_path, 'ZSSR_%s.png' % self.conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
+        plt.imsave(os.path.join(conf.output_dir_path, 'ZSSR_%s.png' % conf.img_name), sr, vmin=0, vmax=max_val, dpi=1)
         runtime = int(time.time() - start_time)
         print('Completed! runtime=%d:%d\n' % (runtime // 60, runtime % 60) + '~' * 30)
 
     def save_kernel(self):
-        final_kernel = post_process_k(self.curr_k, n=self.conf.n_filtering)
-        save_final_kernel(final_kernel, self.conf)
-        print('KERNEL SAVED (see --%s-- folder)\n' % self.conf.output_dir_path + '*' * 60 + '\n\n')
+        final_kernel = post_process_k(self.curr_k, n=conf.n_filtering)
+        save_final_kernel(final_kernel, conf)
+        print('KERNEL SAVED (see --%s-- folder)\n' % conf.output_dir_path + '*' * 60 + '\n\n')
 
     def get_kernel(self):
-        return post_process_k(self.curr_k, n=self.conf.n_filtering)
+        return post_process_k(self.curr_k, n=conf.n_filtering)

@@ -1,8 +1,8 @@
 import os
 import warnings
 import argparse
+import configs
 from train import  train
-from configs import Config
 warnings.filterwarnings("ignore")
 
 def main():
@@ -20,8 +20,9 @@ def main():
     args = prog.parse_args()
     # Run the KernelGAN sequentially on all images in the input directory
     for filename in os.listdir(os.path.abspath(args.input_dir)):
-        conf = Config().parse(create_params(filename, args))
-        train(conf)
+        global conf
+        conf = configs.Config().parse(create_params(filename, args))
+        train()
     prog.exit(0)
 
 

@@ -2,6 +2,7 @@ import argparse
 import torch
 import os
 
+conf = None
 
 # noinspection PyPep8
 class Config:

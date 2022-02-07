@@ -1,4 +1,5 @@
 import numpy as np
+from configs import conf
 from torch.utils.data import Dataset
 from imresize import imresize
 from util import read_image, create_gradient_map, im2tensor, create_probability_map, nn_interpolation
@@ -10,7 +11,7 @@ class DataGenerator(Dataset):
     of that image whenever called.
     """
 
-    def __init__(self, conf, gan):
+    def __init__(self, gan):
         # Default shapes
         self.g_input_shape = conf.input_crop_size
         self.d_input_shape = gan.G.output_size  # shape entering D downscaled by G
