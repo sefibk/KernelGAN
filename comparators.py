@@ -3,22 +3,22 @@ import torch
 import pandas as pd
 import scipy.io as sio
 from PIL import Image ,ImageOps , ImageDraw, ImageFont
+from main import create_params
 from torchvision import transforms
 from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 from configs import Config
-from kernelGAN import KernelGAN
-from train import create_params, train
+from train import train, train_zssr_only
 from argparse import Namespace
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 def run(filename, dir, use_kernel, disc_loss, kernel=None):
     args = Namespace(DL=disc_loss, X4=False, UK=use_kernel, input_dir=dir, noise_scale=1.0, output_dir='results', real=False)
+    args.type = ""
     conf = Config().parse(create_params(filename, args))
     if kernel is None:
         return train(conf)
     else:
-        kergan = KernelGAN(conf)
-        return kergan.run_zssr(kernel)
+        return train_zssr_only(conf, kernel)
 
 def compare_with_gt(img_path, gt_path):
     img = Image.open(img_path)
