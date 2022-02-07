@@ -13,20 +13,19 @@ warnings.filterwarnings("ignore")
 
 
 def train(conf):
-    """Performs ZSSR with estimated kernel for wanted scale factor"""
-    # train KerGAN
     gan = KernelGAN(conf)
     learner = Learner()
-    data = DataGenerator(conf, gan)
-    for iteration in tqdm.tqdm(range(conf.max_iters), ncols=60):
-        [g_in, d_in] = data.__getitem__(iteration)
+    data_K = DataGenerator(conf, gan)
+    for epoch in tqdm.tqdm(range(conf.max_iters), ncols=60):
+        [g_in, d_in] = data_K.__getitem__(epoch)
         gan.train(g_in, d_in)
-        learner.update(iteration, gan)
-    print('KernelGAN estimation complete!')
+        learner.update(epoch, gan)
     gan.save_kernel()
 
-    # train ZSSR
+
+    # train ZSSR as GAN
     start_time = time.time()
+    print('*' * 60 + '\nSTARTED ZSSR on: \"%s\"...' % conf.input_image_path)
     print('~' * 30 + '\nRunning ZSSR X%d ' % (
         4 if gan.conf.X4 else 2) + f"with{'' if gan.conf.use_kernel else 'out'} kernel and with{'' if gan.conf.DL else 'out'} discriminator loss...")
     # check which kernel to use
@@ -47,6 +46,7 @@ def train(conf):
         gan.ZSSR.epoch_Z(crop['HR'], crop['LM'])
         if gan.ZSSR.stop_early_Z:
             break
+        gan.epoch_D_for_ZSSR(crop['HR'])
     sr = gan.ZSSR.final_test()
     max_val = 255 if sr.dtype == 'uint8' else 1.
     # save output image
@@ -55,7 +55,6 @@ def train(conf):
     runtime = int(time.time() - start_time)
     print('Completed! runtime=%d:%d\n' % (runtime // 60, runtime % 60) + '~' * 30)
     print('FINISHED RUN (see --%s-- folder)\n' % gan.conf.output_dir_path + '*' * 60 + '\n\n')
-
 
 def main():
     """The main function - performs kernel estimation (+ ZSSR) for all images in the 'test_images' folder"""

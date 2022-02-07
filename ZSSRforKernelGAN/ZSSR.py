@@ -271,28 +271,9 @@ class ZSSR:
         # Add colors to result image in case net was activated only on grayscale
         return self.final_sr
 
-    def epoch_Z(self, kernel=None):
+    def epoch_Z(self, hr_father, cropped_loss_map, kernel=None):
         # Increment epcho number of ZSSR
         self.epoch_num_Z += 1
-        # Use augmentation from original input image to create current father.
-        # If other scale factors were applied before, their result is also used (hr_fathers_in)
-        # crop_center = choose_center_of_crop(self.prob_map) if self.conf.choose_varying_crop else None
-        crop_center = None
-
-        hr_father, cropped_loss_map = \
-            random_augment(ims=[self.input],
-                           base_scales=[1.0] + [self.conf.scale_factor],
-                           leave_as_is_probability=self.conf.augment_leave_as_is_probability,
-                           no_interpolate_probability=self.conf.augment_no_interpolate_probability,
-                           min_scale=self.conf.augment_min_scale,
-                           max_scale=([1.0] + [self.conf.scale_factor])[0],
-                           allow_rotation=self.conf.augment_allow_rotation,
-                           scale_diff_sigma=self.conf.augment_scale_diff_sigma,
-                           shear_sigma=self.conf.augment_shear_sigma,
-                           crop_size=self.conf.crop_size,
-                           allow_scale_in_no_interp=self.conf.allow_scale_in_no_interp,
-                           crop_center=crop_center,
-                           loss_map_sources=[self.loss_map])
         # set the kernel of the for father_to_son
         if kernel:
             self.set_kernel(kernel)
