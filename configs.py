@@ -13,6 +13,7 @@ class Config:
         self.parser.add_argument('--img_name', default='image1', help='image name for saving purposes')
         self.parser.add_argument('--input_image_path', default=os.path.dirname(__file__) + '/training_data/input.png', help='path to one specific image file')
         self.parser.add_argument('--output_dir_path', default=os.path.dirname(__file__) + '/results', help='results path')
+        self.parser.add_argument('--type', default="", help='type of training')
 
         # Sizes
         self.parser.add_argument('--input_crop_size', type=int, default=64, help='Generators crop size')
@@ -54,7 +55,7 @@ class Config:
         self.clean_file_name()
         self.set_output_directory()
         self.conf.G_structure = [7, 5, 3, 1, 1, 1]
-        print("Scale Factor: %s \tZSSR: %s \tReal Image: %s" % (('X4' if self.conf.X4 else 'X2'), str(self.conf.do_ZSSR), str(self.conf.real_image)))
+        print("Scale Factor: %s \tReal Image: %s" % (('X4' if self.conf.X4 else 'X2'), str(self.conf.real_image)))
         return self.conf
 
     def clean_file_name(self):

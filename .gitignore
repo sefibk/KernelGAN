@@ -126,7 +126,10 @@ dmypy.json
 # IDE
 .idea/
 .vscode/
+/results
 /results/*
 /train/Test
 /train/Test/*
 /runs/*
+/Compared
+/Compared/*
