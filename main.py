@@ -1,7 +1,6 @@
 import os
 import warnings
 import argparse
-from Utils.training_types import TrainingTypes
 from Utils import configs
 from train import  train
 warnings.filterwarnings("ignore")

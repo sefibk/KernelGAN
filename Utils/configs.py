@@ -1,8 +1,5 @@
 import argparse
 import torch
-import os
-
-import train
 from train import *
 from Utils.training_types import TrainingTypes
 
