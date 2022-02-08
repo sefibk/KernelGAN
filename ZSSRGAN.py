@@ -2,12 +2,11 @@ import time
 import os
 import matplotlib.pyplot as plt
 import torch
-import loss
-import configs
+from Utils import loss, configs
 from ZSSRforKernelGAN.ZSSR import ZSSR
 import networks
 import torch.nn.functional as F
-from util import save_final_kernel, post_process_k, analytic_kernel, im2tensor
+from Utils.util import save_final_kernel, post_process_k, analytic_kernel, im2tensor
 
 
 class KernelGAN:

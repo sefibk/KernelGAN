@@ -2,12 +2,12 @@ import os
 import tqdm
 import time
 import matplotlib.pyplot as plt
-import configs
-from data import DataGenerator
-from kernelGAN import KernelGAN
-from learner import Learner
-from util import analytic_kernel
-from ZSSRforKernelGAN.ZSSR_data_handling import ZSSRDataset
+from Utils import configs
+from ZSSRGAN import KernelGAN
+from Utils.learner import Learner
+from Utils.util import analytic_kernel
+from Utils.ZSSR_data_handling import ZSSRDataset
+from Utils.data import DataGenerator
 
 
 def train():
@@ -46,8 +46,7 @@ def train():
         gan.ZSSR.epoch_Z(crop['HR'], crop['LM'])
         if gan.ZSSR.stop_early_Z:
             break
-        if conf.type == 'serial':
-            gan.epoch_D_for_ZSSR(crop['HR'])
+        conf.training(gan, crop)
     sr = gan.ZSSR.final_test()
     max_val = 255 if sr.dtype == 'uint8' else 1.
     # save output image
@@ -57,6 +56,15 @@ def train():
     print('Completed! runtime=%d:%d\n' % (runtime // 60, runtime % 60) + '~' * 30)
     print('FINISHED RUN (see --%s-- folder)\n' % conf.output_dir_path + '*' * 60 + '\n\n')
     return os.path.join(conf.output_dir_path, 'ZSSR_%s.png' % conf.img_name)
+
+def train_fixed(gan, crop):
+    print("you are in fixed training")
+    return
+
+
+def train_serial(gan, crop):
+    print("you are in serial training")
+    gan.epoch_D_for_ZSSR(crop['HR'])
 
 def train_zssr_only(kernel):
     conf = configs.conf

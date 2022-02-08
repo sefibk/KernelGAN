@@ -1,6 +1,6 @@
 import math
 
-from imresize import imresize
+from Utils.imresize import imresize
 from torch import nn
 import torch
 

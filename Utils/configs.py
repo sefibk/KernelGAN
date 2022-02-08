@@ -2,14 +2,24 @@ import argparse
 import torch
 import os
 
+import train
+from train import *
+from Utils.training_types import TrainingTypes
+
 parser = argparse.ArgumentParser()
 conf = None
+
+training_dict = {
+    TrainingTypes.FIXED: train_fixed,
+    TrainingTypes.SERIAL: train_serial,
+    TrainingTypes.SEMIE2E: train_fixed,
+    TrainingTypes.E2E: train_fixed
+}
 
 # Paths
 parser.add_argument('--img_name', default='image1', help='image name for saving purposes')
 parser.add_argument('--input_image_path', default=os.path.dirname(__file__) + '/training_data/input.png', help='path to one specific image file')
 parser.add_argument('--output_dir_path', default=os.path.dirname(__file__) + '/results', help='results path')
-parser.add_argument('--type', default="", help='type of training')
 
 # Sizes
 parser.add_argument('--input_crop_size', type=int, default=64, help='Generators crop size')
@@ -22,6 +32,7 @@ parser.add_argument('--D_chan', type=int, default=64, help='# of channels in hid
 parser.add_argument('--G_kernel_size', type=int, default=13, help='The kernel size G is estimating')
 parser.add_argument('--D_n_layers', type=int, default=7, help='Discriminators depth')
 parser.add_argument('--D_kernel_size', type=int, default=7, help='Discriminators convolution kernels size')
+parser.add_argument('--type', type=str, default="fixed", help='Type of training process')
 
 # Iterations
 parser.add_argument('--max_iters', type=int, default=3000, help='# of iterations')
@@ -49,6 +60,7 @@ def parse(args=None):
     global conf
     conf = parser.parse_args(args=args)
     set_gpu_device()
+    set_training_method()
     clean_file_name()
     set_output_directory()
     conf.G_structure = [7, 5, 3, 1, 1, 1]
@@ -58,6 +70,10 @@ def clean_file_name():
     """Retrieves the clean image file_name for saving purposes"""
     conf.img_name = conf.input_image_path.split(os.sep)[-1].replace('ZSSR', '') \
         .replace('real', '').replace('__', '').split('_.')[0].split('.')[0]
+
+def set_training_method():
+    conf.training = training_dict[TrainingTypes[conf.type]]
+
 
 def set_gpu_device():
     """Sets the GPU device if one is given"""

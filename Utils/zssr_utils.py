@@ -1,11 +1,9 @@
 import numpy as np
 from math import pi, sin, cos
 from cv2 import warpPerspective, INTER_CUBIC
-from imresize import imresize
+from Utils.imresize import imresize
 from scipy.ndimage import measurements, interpolation
-from scipy.io import loadmat
 from scipy.signal import convolve2d
-from random import sample
 import matplotlib.image as img
 
 

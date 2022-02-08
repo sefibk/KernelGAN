@@ -1,8 +1,8 @@
 import numpy as np
-import configs
+from Utils import configs
 from torch.utils.data import Dataset
-from imresize import imresize
-from util import read_image, create_gradient_map, im2tensor, create_probability_map, nn_interpolation
+from Utils.imresize import imresize
+from Utils.util import read_image, create_gradient_map, im2tensor, create_probability_map, nn_interpolation
 
 
 class DataGenerator(Dataset):
