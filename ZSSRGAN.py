@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from Utils.util import save_final_kernel, post_process_k, analytic_kernel, im2tensor
 
 
-class KernelGAN:
+class ZSSRGAN:
     # Constraint co-efficients
     lambda_sum2one = 0.5
     lambda_bicubic = 5
