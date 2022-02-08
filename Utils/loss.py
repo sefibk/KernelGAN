@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from util import shave_a2b, resize_tensor_w_kernel, create_penalty_mask, map2tensor
+from Utils.util import shave_a2b, resize_tensor_w_kernel, create_penalty_mask, map2tensor
 
 
 # noinspection PyUnresolvedReferences

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from util import swap_axis
+from Utils.util import swap_axis
 
 
 class Generator(nn.Module):

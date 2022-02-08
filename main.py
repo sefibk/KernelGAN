@@ -1,8 +1,8 @@
 import os
 import warnings
 import argparse
+from Utils import configs
 from train import  train
-from configs import Config
 warnings.filterwarnings("ignore")
 
 def main():
@@ -16,19 +16,20 @@ def main():
     prog.add_argument('--UK', action='store_true', help='When activated - ZSSR will use the kernel of Kergan.')
     prog.add_argument('--real', action='store_true', help='ZSSRs configuration is for real images')
     prog.add_argument('--noise_scale', type=float, default=1., help='ZSSR uses this to partially de-noise images')
-    prog.add_argument('--type', type=str, default="", help='Type of training process')
+    prog.add_argument('--type', type=str, default="fixed", help='Type of training process')
     args = prog.parse_args()
     # Run the KernelGAN sequentially on all images in the input directory
     for filename in os.listdir(os.path.abspath(args.input_dir)):
-        conf = Config().parse(create_params(filename, args))
-        train(conf)
+        configs.parse(create_params(filename, args))
+        train()
     prog.exit(0)
 
 
 def create_params(filename, args):
     params = ['--input_image_path', os.path.join(args.input_dir, filename),
               '--output_dir_path', os.path.abspath(args.output_dir),
-              '--noise_scale', str(args.noise_scale)]
+              '--noise_scale', str(args.noise_scale),
+              '--type', args.type.upper()]
     if args.X4:
         params.append('--X4')
     if args.DL:

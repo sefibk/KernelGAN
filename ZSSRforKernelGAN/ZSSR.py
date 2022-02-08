@@ -1,10 +1,8 @@
-import math
 import torch
 import tqdm
 from torch.utils.tensorboard import SummaryWriter
-import matplotlib.image as img
-from ZSSRforKernelGAN.zssr_configs import Config
-from ZSSRforKernelGAN.zssr_utils import *
+from Utils.zssr_configs import Config
+from Utils.zssr_utils import *
 from ZSSRforKernelGAN.ZSSR_network import *
 
 class ZSSR:

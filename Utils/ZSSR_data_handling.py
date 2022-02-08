@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset
-from ZSSRforKernelGAN.zssr_utils import *
+from Utils.zssr_utils import *
 
 
 class ZSSRDataset(Dataset):
