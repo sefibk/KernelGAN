@@ -146,7 +146,7 @@ def train_zssr_only(kernel):
 def set_kernel(conf, gan, kernel=None):
     if conf.use_kernel:
         # get kernel from KerGAN
-        kernel = kernel or gan.get_kernel()
+        kernel = kernel if kernel is not None else gan.get_kernel()
         if conf.X4:
             gan.ZSSR.set_kernel(analytic_kernel(kernel))
         else:
