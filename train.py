@@ -44,14 +44,8 @@ def train_fixed(conf, gan, learner, data, data_Z):
     gan.save_kernel()
     print('~' * 30 + '\nRunning ZSSR X%d ' % (
         4 if conf.X4 else 2) + f"with{'' if conf.use_kernel else 'out'} kernel and with{'' if conf.DL else 'out'} discriminator loss...")
-    # check which kernel to use
-    if conf.use_kernel:
-        # get kernel from KerGAN
-        final_kernel = gan.get_kernel()
-        if conf.X4:
-            gan.ZSSR.set_kernel(analytic_kernel(final_kernel))
-        else:
-            gan.ZSSR.set_kernel(final_kernel)
+
+    set_kernel(conf, gan)
     # start training loop
     for _ in tqdm.tqdm(range(gan.ZSSR.conf.max_iters), ncols=60):
         crop = data_Z[0]
@@ -69,21 +63,55 @@ def train_serial(conf, gan, learner, data, data_Z):
     gan.save_kernel()
     print('~' * 30 + '\nRunning ZSSR X%d ' % (
         4 if conf.X4 else 2) + f"with{'' if conf.use_kernel else 'out'} kernel and with{'' if conf.DL else 'out'} discriminator loss...")
-    # check which kernel to use
-    if conf.use_kernel:
-        # get kernel from KerGAN
-        final_kernel = gan.get_kernel()
-        if conf.X4:
-            gan.ZSSR.set_kernel(analytic_kernel(final_kernel))
-        else:
-            gan.ZSSR.set_kernel(final_kernel)
+
+    set_kernel(conf, gan)
     # start training loop
     for _ in tqdm.tqdm(range(gan.ZSSR.conf.max_iters), ncols=60):
         crop = data_Z[0]
         gan.ZSSR.epoch_Z(crop['HR'], crop['LM'])
         if gan.ZSSR.stop_early_Z:
             break
-        gan.epoch_D_for_ZSSR(crop['HR'])
+        gan.epoch_D_only_ZSSR(crop['HR'])
+
+def train_semie2e(conf, gan, learner, data, data_Z):
+    for iteration in tqdm.tqdm(range(conf.max_iters), ncols=60):
+        [g_in, d_in] = data.__getitem__(iteration)
+        gan.set_input(g_in, d_in)
+        gan.epoch_G()
+
+        set_kernel(conf, gan)
+        crop = data_Z[0]
+        gan.ZSSR.epoch_Z(crop['HR'], crop['LM'])
+        if gan.ZSSR.stop_early_Z:
+            break
+
+        loss_d = (gan.calc_loss_d() + gan.calc_loss_d(crop['HR']))/2
+        loss_d.backward()
+        gan.optimizer_D.step()
+
+        learner.update(iteration, gan)
+    print('KernelGAN estimation complete!')
+    gan.save_kernel()
+
+def train_e2e(conf, gan, learner, data, data_Z):
+    for iteration in tqdm.tqdm(range(conf.max_iters), ncols=60):
+        [g_in, d_in] = data.__getitem__(iteration)
+        gan.set_input(g_in, d_in)
+        gan.epoch_G()
+
+        set_kernel(conf, gan)
+        crop = data_Z[0]
+        gan.ZSSR.epoch_Z(crop['HR'], crop['LM'])
+        if gan.ZSSR.stop_early_Z:
+            break
+
+        loss_d = gan.calc_loss_d(crop['HR'])
+        loss_d.backward()
+        gan.optimizer_D.step()
+
+        learner.update(iteration, gan)
+    print('KernelGAN estimation complete!')
+    gan.save_kernel()
 
 def train_zssr_only(kernel):
     conf = configs.conf
@@ -91,12 +119,8 @@ def train_zssr_only(kernel):
     start_time = time.time()
     print('~' * 30 + '\nRunning ZSSR X%d ' % (
         4 if conf.X4 else 2) + f"with{'' if conf.use_kernel else 'out'} kernel and with{'' if conf.DL else 'out'} discriminator loss...")
-    # check which kernel to use
-    if conf.use_kernel:
-        if conf.X4:
-            gan.ZSSR.set_kernel(analytic_kernel(kernel))
-        else:
-            gan.ZSSR.set_kernel(kernel)
+
+    set_kernel(conf, gan, kernel=kernel)
     # Set gan loss
     gan.ZSSR.set_disc_loss(gan.D, gan.criterionGAN)
     # set ZSSR dataset
@@ -118,3 +142,12 @@ def train_zssr_only(kernel):
     print('Completed! runtime=%d:%d\n' % (runtime // 60, runtime % 60) + '~' * 30)
     print('FINISHED RUN (see --%s-- folder)\n' % conf.output_dir_path + '*' * 60 + '\n\n')
     return os.path.join(conf.output_dir_path, 'ZSSR_%s.png' % conf.img_name)
+
+def set_kernel(conf, gan, kernel=None):
+    if conf.use_kernel:
+        # get kernel from KerGAN
+        kernel = kernel or gan.get_kernel()
+        if conf.X4:
+            gan.ZSSR.set_kernel(analytic_kernel(kernel))
+        else:
+            gan.ZSSR.set_kernel(kernel)

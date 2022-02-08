@@ -9,8 +9,8 @@ conf = None
 training_dict = {
     TrainingTypes.FIXED: train_fixed,
     TrainingTypes.SERIAL: train_serial,
-    TrainingTypes.SEMIE2E: train_fixed,
-    TrainingTypes.E2E: train_fixed
+    TrainingTypes.SEMIE2E: train_semie2e,
+    TrainingTypes.E2E: train_e2e
 }
 
 # Paths
@@ -61,7 +61,7 @@ def parse(args=None):
     clean_file_name()
     set_output_directory()
     conf.G_structure = [7, 5, 3, 1, 1, 1]
-    print("Scale Factor: %s \tReal Image: %s" % (('X4' if conf.X4 else 'X2'), str(conf.real_image)))
+    print("Scale Factor: %s \tReal Image: %s \t Training type: %s" % (('X4' if conf.X4 else 'X2'), str(conf.real_image), TrainingTypes[conf.type]))
 
 def clean_file_name():
     """Retrieves the clean image file_name for saving purposes"""
