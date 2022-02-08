@@ -20,8 +20,7 @@ def main():
     args = prog.parse_args()
     # Run the KernelGAN sequentially on all images in the input directory
     for filename in os.listdir(os.path.abspath(args.input_dir)):
-        global conf
-        conf = configs.Config().parse(create_params(filename, args))
+        configs.parse(create_params(filename, args))
         train()
     prog.exit(0)
 

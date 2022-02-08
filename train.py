@@ -2,7 +2,7 @@ import os
 import tqdm
 import time
 import matplotlib.pyplot as plt
-from configs import conf
+import configs
 from data import DataGenerator
 from kernelGAN import KernelGAN
 from learner import Learner
@@ -11,6 +11,7 @@ from ZSSRforKernelGAN.ZSSR_data_handling import ZSSRDataset
 
 
 def train():
+    conf = configs.conf
     """Performs ZSSR with estimated kernel for wanted scale factor"""
     # train KerGAN
     gan = KernelGAN()
@@ -57,7 +58,8 @@ def train():
     print('FINISHED RUN (see --%s-- folder)\n' % conf.output_dir_path + '*' * 60 + '\n\n')
     return os.path.join(conf.output_dir_path, 'ZSSR_%s.png' % conf.img_name)
 
-def train_zssr_only(conf, kernel):
+def train_zssr_only(kernel):
+    conf = configs.conf
     gan = KernelGAN()
     start_time = time.time()
     print('~' * 30 + '\nRunning ZSSR X%d ' % (
