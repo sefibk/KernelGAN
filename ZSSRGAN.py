@@ -31,7 +31,8 @@ class ZSSRGAN:
         # scale factor to for ZSSR
         sf = 4 if self.conf.X4 else 2
         # Initiate ZSSR without kernel, kernel will be added once it computed
-        self.ZSSR = ZSSR(self.conf.input_image_path, scale_factor=sf, kernel=None, is_real_img=self.conf.real_image, noise_scale=self.conf.noise_scale, disc_loss=self.conf.DL)
+        self.ZSSR = ZSSR(self.conf.input_image_path, scale_factor=sf, kernel=None, is_real_img=self.conf.real_image,
+                         noise_scale=self.conf.noise_scale, disc_loss=self.conf.DL, disc_loss_ratio=self.conf.disc_loss_ratio)
 
         # Calculate D's input & output shape according to the shaving done by the networks
         self.d_input_shape = self.G.output_size

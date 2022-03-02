@@ -17,6 +17,7 @@ def main():
     prog.add_argument('--real', action='store_true', help='ZSSRs configuration is for real images')
     prog.add_argument('--noise_scale', type=float, default=1., help='ZSSR uses this to partially de-noise images')
     prog.add_argument('--type', type=str, default="fixed", help='Type of training process')
+    prog.add_argument('--disc_loss_ratio', type=float, default=0.5, help='set the ratio between disc loss and L1 loss in the ZSSR total loss')
     args = prog.parse_args()
     # Run the KernelGAN sequentially on all images in the input directory
     for filename in os.listdir(os.path.abspath(args.input_dir)):
@@ -29,7 +30,8 @@ def create_params(filename, args):
     params = ['--input_image_path', os.path.join(args.input_dir, filename),
               '--output_dir_path', os.path.abspath(args.output_dir),
               '--noise_scale', str(args.noise_scale),
-              '--type', args.type.upper()]
+              '--type', args.type.upper(),
+              '--disc_loss_ratio', str(args.disc_loss_ratio)]
     if args.X4:
         params.append('--X4')
     if args.DL:

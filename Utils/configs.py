@@ -51,6 +51,7 @@ parser.add_argument('--noise_scale', type=float, default=1., help='ZSSR uses thi
 parser.add_argument('--real_image', action='store_true', help='ZSSRs configuration is for real images')
 parser.add_argument('--DL', action='store_true', help='When activated - ZSSR will use an additional discriminator loss.')
 parser.add_argument('--use_kernel', action='store_true', help='When activated - ZSSR will use the kernel of Kergan.')
+parser.add_argument('--disc_loss_ratio', type=float, default=0.5, help='set the ratio between disc loss and L1 loss in the ZSSR total loss')
 
 def parse(args=None):
     """Parse the configuration"""

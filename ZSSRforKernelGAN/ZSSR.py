@@ -65,7 +65,8 @@ class ZSSR:
     # Tensorflow graph default
     sess = None
 
-    def __init__(self, input_img_path, scale_factor=2, kernel=None, is_real_img=False, noise_scale=1., disc_loss=False):
+    def __init__(self, input_img_path, scale_factor=2, kernel=None, is_real_img=False, noise_scale=1.,
+                 disc_loss=False, disc_loss_ratio=0.5):
         # define the writer to log info into TensorBoard
         self.writer = SummaryWriter()
         # Save input image path
@@ -109,6 +110,12 @@ class ZSSR:
 
         # define loss function
         self.criterion = WeightedL1Loss()
+
+        # normalization of the disc loss to the L1 loss scale
+        self.norm_factor = None
+
+        # ratio between disc loss and L1 loss in the total loss
+        self.loss_ratio = disc_loss_ratio/(1-disc_loss_ratio)
 
         # Optimizers
         self.optimizer_Z = torch.optim.Adam(self.network.parameters(), lr=self.learning_rate, betas=(0.9, 0.999))
@@ -305,8 +312,10 @@ class ZSSR:
         else:
             # Final loss (Weighted (cropped_loss_map) L1 loss between label and output layer)
             loss_Disc = 0
+        if not self.norm_factor:
+            self.norm_factor = (loss_L1/loss_Disc).detach()
         # Total loss
-        loss = loss_L1 + loss_Disc
+        loss = loss_L1 + self.loss_ratio*self.norm_factor*loss_Disc
         # Initiate backprop
         loss.backward()
         self.optimizer_Z.step()
